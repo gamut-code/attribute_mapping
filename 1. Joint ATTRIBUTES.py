@@ -9,7 +9,7 @@ import pandas as pd
 from gamut_query_15 import GamutQuery_15
 from grainger_query import GraingerQuery
 from queries_PIM import gamut_basic_query, grainger_attr_query, gamut_attr_query
-import file_data as fd
+import file_data_att as fd
 import settings
 from pathlib import Path
 import requests
@@ -134,7 +134,7 @@ def grainger_process(grainger_df, grainger_sample, k):
     return df
     
 def isBlank (myString):
-    return not (myString and pd.isnull(myString))
+    return (myString and pd.isnull(myString))
 
 
 def determine_match(df):

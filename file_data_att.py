@@ -225,5 +225,6 @@ def attribute_match_data_out(directory_name, df, search_level):
     worksheet1.set_column('X:X', 15, layout)
     worksheet1.set_column('Y:Y', 40, layout)
     worksheet1.set_column('Z:Z', 50, layout)
+    worksheet1.set_column('AA:AA', 20, layout)
         
     writer.save()
