@@ -10,7 +10,7 @@ gamut_basic_query="""
     SELECT
           tprod."gtPartNumber" as "Gamut_SKU"
         , tprod."supplierSku" as "Grainger_SKU"
-        , tprod."categoryId" AS "Gamut Node ID"
+        , tprod."categoryId" AS "Gamut_Node_ID"
         
     FROM taxonomy_product tprod
     
@@ -40,22 +40,18 @@ gamut_attr_query="""
             )
 
     SELECT
-          array_to_string(tax.ancestor_names || tax.name,' > ') as "Gamut PIM Path"
-        , tax.ancestors[1] as "Gamut Category ID"  
-        , tax.ancestor_names[1] as "Gamut Category Name"
-        , tprod."categoryId" AS "Gamut Node ID"
-        , tax.name as "Gamut Node Name"
+          array_to_string(tax.ancestor_names || tax.name,' > ') as "Gamut_PIM_Path"
+        , tax.ancestors[1] as "Gamut_Category_ID"  
+        , tax.ancestor_names[1] as "Gamut_Category_Name"
+        , tprod."categoryId" AS "Gamut_Node_ID"
+        , tax.name as "Gamut_Node_Name"
         , tprod."gtPartNumber" as "Gamut_SKU"
         , tprod."supplierSku" as "Grainger_SKU"
         , tax_att.id as "Gamut_Attr_ID"
         , tax_att.name as "Gamut_Attribute_Name"
         , tax_att.description as "Gamut_Attribute_Definition"
---        , tax_att."unitGroupId" AS "Gamut UOM ID"
---        , tax_att."dataType" as "Gamut Data Type"
         , tprodvalue.value as "Original Value"
---        , tprodvalue.unit as "UOM"
         , tprodvalue."valueNormalized" as "Normalized Value"
---        , tprodvalue."unitNormalized" as "UOM"
    
     FROM  taxonomy_product tprod
 
@@ -77,11 +73,11 @@ gamut_attr_query="""
         
 #pull attribute values from Grainger teradata material universe by L3
 grainger_attr_query="""
-           	SELECT cat.SEGMENT_ID AS L1
+           	SELECT cat.SEGMENT_ID AS Segment_ID
             , cat.SEGMENT_NAME AS Segment_Name
-            , cat.FAMILY_ID AS L2
+            , cat.FAMILY_ID AS Family_ID
             , cat.FAMILY_NAME AS Family_Name
-            , cat.CATEGORY_ID AS L3
+            , cat.CATEGORY_ID AS Category_ID
             , cat.CATEGORY_NAME AS Category_Name
             , item.MATERIAL_NO AS Grainger_SKU
             , attr.DESCRIPTOR_ID as Grainger_Attr_ID

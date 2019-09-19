@@ -4,7 +4,6 @@ Created on Sun Mar 31 20:58:51 2019
 
 @author: xcxg109
 """
-import os
 from pathlib import Path
 import pandas as pd
 import settings
@@ -25,28 +24,9 @@ def search_type():
             elif data_type in ['3', 'sku', 'Sku', 'SKU', 's', 'S']:
                 data_type = 'sku'
                 break
-            elif data_type in ['4', 'other', 'Other', 'OTHER', 'o', 'O']:
-                data_type = 'other'
-                break
         except ValueError:
             print('Invalid search type')
-    
-    if data_type == 'other':
-        while True:
-            try:
-                data_type = input ('Query Type?\n1. Attribute Value\n2. Attribute Name\n3. Supplier ID ')
-                if data_type in ['attribute value', 'Attribute Value', 'value', 'Value', 'VALUE', '1']:
-                    data_type = 'value'
-                    break
-                elif data_type in ['attribute name', 'Attribute Name', 'name', 'Name', 'NAME', '2']:
-                    data_type = 'name'
-                    break
-                if data_type in ['supplier id', 'supplier ID', 'Supplier ID', 'SUPPLIER ID', 'Supplier id', 'ID', 'id', '3']:
-                    data_type = 'supplier'
-                    break
-            except ValueError:
-                print('Invalid search type')
-    
+        
     return data_type
 
 
@@ -100,22 +80,11 @@ def data_in(data_type, directory_name):
         search_data = input('Input Yellow node ID or hit ENTER to read from file: ')
     elif data_type == 'sku':
         search_data = input ('Input SKU or hit ENTER to read from file: ')
-    elif data_type == 'value':
-        search_data = input ('Input attribute value to search for: ')
-    elif data_type == 'name':
-        search_data = input ('Input attribute name to search for: ')
-    elif data_type == 'supplier':
-        search_data = input ('Input Supplier ID to search for: ')
         
     if search_data != "":
         search_data = [search_data]
         return search_data
     else:
-        #read file
-#        file_name = settings.get_file_name()
-#        file_path = Path(directory_name)/file_name  #setup the data file to read
-#        file_path = os.path.join(directory_name, file_name)
-#        file_data = [re.split('\s+', i.strip('\n')) for i in open(file_path)]
         file_data = settings.get_file_data()
 
         if data_type == 'node':
@@ -123,7 +92,6 @@ def data_in(data_type, directory_name):
             return search_data
         elif data_type == 'yellow':
             search_data = [str(row[0]) for row in file_data[1:]]
-#            search_data = file_data
             return search_data
         elif data_type == 'sku':
             search_data = [row[0] for row in file_data[1:]]
@@ -135,16 +103,7 @@ def outfile_name (directory_name, quer, df, search_level, gamut='no'):
     if search_level == 'SKU':
         outfile = Path(directory_name)/"SKU REPORT.xlsx"
     else:   
-        if gamut == 'yes':
-            if search_level == 'cat.SEGMENT_ID':    #set directory path and name output file
-                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,2], df.iloc[0,3], quer)
-            elif search_level == 'cat.FAMILY_ID':
-                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,4], df.iloc[0,5], quer)
-            else:
-                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,6], df.iloc[0,7], quer)
-        elif quer == 'ATTRIBUTES':
-            outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,3], df.iloc[0,2], quer)
-        elif quer == 'GRAINGER-GAMUT':
+        if quer == 'GRAINGER-GAMUT':
             if search_level == 'cat.SEGMENT_ID':    #set directory path and name output file
                 outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,1], df.iloc[0,2], quer)
             elif search_level == 'cat.FAMILY_ID':
@@ -167,7 +126,7 @@ def attribute_match_data_out(directory_name, df, search_level):
 
     quer = 'GRAINGER-GAMUT'
     
-    order = [10, 0, 1, 2, 3, 4, 5, 13, 14, 15, 12, 16, 21, 8, 9, 11, 6, 7, 22, 23, 24, 25, 18, 17, 20, 19, 26] 
+    order = [10, 0, 1, 2, 3, 4, 5, 14, 15, 16, 13, 17, 8, 9, 20, 24, 23, 11, 21, 6, 7, 25, 26, 27, 28, 29, 18, 19] 
     df = col_order(df, order)
     outfile = outfile_name (directory_name, quer, df, search_level)
     
@@ -199,32 +158,33 @@ def attribute_match_data_out(directory_name, df, search_level):
     #set header different
     worksheet1.set_row(0, None, header_fmt)
     
-    worksheet1.set_column('A:A', 40, layout)
-    worksheet1.set_column('B:B', 15, layout)
+    worksheet1.set_column('A:A', 30, layout)
+    worksheet1.set_column('B:B', 12, layout)
     worksheet1.set_column('C:C', 30, layout)
-    worksheet1.set_column('D:D', 15, layout)
+    worksheet1.set_column('D:D', 12, layout)
     worksheet1.set_column('E:E', 30, layout)
-    worksheet1.set_column('F:F', 15, layout)
+    worksheet1.set_column('F:F', 12, layout)
     worksheet1.set_column('G:G', 30, layout)
-    worksheet1.set_column('H:H', 40, layout)
-    worksheet1.set_column('I:I', 20, layout)
+    worksheet1.set_column('H:H', 30, layout)
+    worksheet1.set_column('I:I', 12, layout)
     worksheet1.set_column('J:J', 30, layout)
-    worksheet1.set_column('K:K', 15, layout)
+    worksheet1.set_column('K:K', 12, layout)
     worksheet1.set_column('L:L', 30, layout)
     worksheet1.set_column('M:M', 40, layout)
-    worksheet1.set_column('N:N', 50, layout)
-    worksheet1.set_column('O:O', 50, layout)
-    worksheet1.set_column('P:P', 40, layout)
-    worksheet1.set_column('Q:Q', 15, layout)
-    worksheet1.set_column('R:R', 40, layout)
+    worksheet1.set_column('N:N', 40, layout)
+    worksheet1.set_column('O:O', 40, layout)
+    worksheet1.set_column('P:P', 30, layout)
+    worksheet1.set_column('Q:Q', 20, layout)
+    worksheet1.set_column('R:R', 30, layout)
     worksheet1.set_column('S:S', 30, layout)
-    worksheet1.set_column('T:T', 30, layout)
+    worksheet1.set_column('T:T', 12, layout)
     worksheet1.set_column('U:U', 30, layout)
     worksheet1.set_column('V:V', 30, layout)
     worksheet1.set_column('W:W', 30, layout)
-    worksheet1.set_column('X:X', 15, layout)
-    worksheet1.set_column('Y:Y', 40, layout)
-    worksheet1.set_column('Z:Z', 50, layout)
-    worksheet1.set_column('AA:AA', 20, layout)
+    worksheet1.set_column('X:X', 30, layout)
+    worksheet1.set_column('Y:Y', 15, layout)
+    worksheet1.set_column('Z:Z', 30, layout)
+    worksheet1.set_column('AA:AA', 12, layout)
+    worksheet1.set_column('AB:AB', 30, layout)
         
     writer.save()
