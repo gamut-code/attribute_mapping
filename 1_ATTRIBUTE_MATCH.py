@@ -195,6 +195,7 @@ attribute_df['Taxonomist Approved (yes/no)'] = ""
 attribute_df['Taxonomist Notes'] = ""
 
 #test = pull.determine_match(attribute_df, grainger_att_vals, gamut_att_vals)
+pull.determine_match(attribute_df)
 
 fd.attribute_match_data_out(settings.directory_name, attribute_df, search_level)
 

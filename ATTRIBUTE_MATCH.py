@@ -6,84 +6,15 @@ Created on Fri Aug 16 16:39:52 2019
 """
 
 import pandas as pd
-from gamut_query_15 import GamutQuery_15
-from grainger_query import GraingerQuery
-from queries_PIM import gamut_basic_query, grainger_attr_query, gamut_attr_query
+import query_code as q
 import attribute_data_pull as pull
 import file_data_att as fd
 import settings
+from queries_PIM import grainger_attr_query
+
 
 pd.options.mode.chained_assignment = None
 
-gcom = GraingerQuery()
-gamut = GamutQuery_15()
-    
-
-def gamut_skus(grainger_skus):
-    """get basic list of gamut SKUs to pull the related PIM nodes"""
-    sku_list = grainger_skus['Grainger_SKU'].tolist()
-    gamut_skus = ", ".join("'" + str(i) + "'" for i in sku_list)
-    gamut_sku_list = gamut.gamut_q15(gamut_basic_query, 'tprod."supplierSku"', gamut_skus)
-    
-    return gamut_sku_list
-
-
-def gamut_atts(node):
-    """pull gamut attributes based on the PIM node list created by gamut_skus"""
-    df = pd.DataFrame()
-    #pull attributes for the next pim node in the gamut list
-    df = gamut.gamut_q15(gamut_attr_query, 'tprod."categoryId"', node)
-    print('Gamut ', node)
-
-    return df
-
-
-def grainger_values(grainger_df):
-    """find the top 5 most used values for each attribute and return as sample_values"""
-    top_vals = pd.DataFrame()
-    temp_att = pd.DataFrame()
-    
-    grainger_df['Count'] =1
-    atts = grainger_df['Grainger_Attribute_Name'].unique()
-    
-    vals = pd.DataFrame(grainger_df.groupby(['Grainger_Attribute_Name', 'Grainger_Attribute_Value'])['Count'].sum())
-    vals = vals.reset_index()
-
-    for attribute in atts:
-        temp_att = vals.loc[vals['Grainger_Attribute_Name']== attribute]
-        temp_att = temp_att.sort_values(by=['Count'], ascending=[False]).head(5)
-        top_vals = pd.concat([top_vals, temp_att], axis=0)
-        
-    top_vals = top_vals.groupby('Grainger_Attribute_Name')['Grainger_Attribute_Value'].apply('; '.join).reset_index()
-    
-    vals = vals.drop(['Count'], axis=1)
-    vals = vals.groupby('Grainger_Attribute_Name')['Grainger_Attribute_Value'].apply('; '.join).reset_index()
-    
-    return vals, top_vals
-
-
-def gamut_values(gamut_df):
-    """find the top 5 most used values for each attribute and return as sample_values"""
-    top_vals = pd.DataFrame()
-    temp_att = pd.DataFrame()
-    
-    gamut_df['Count'] = 1
-    atts = gamut_df['Gamut_Attribute_Name'].unique()
-    
-    vals = pd.DataFrame(gamut_df.groupby(['Gamut_Attribute_Name', 'Normalized Value'])['Count'].sum())
-    vals = vals.reset_index()
-    
-    for attribute in atts:
-        temp_att = vals.loc[vals['Gamut_Attribute_Name']== attribute]
-        temp_att = temp_att.sort_values(by=['Count'], ascending=[False]).head(5)
-        top_vals = pd.concat([top_vals, temp_att], axis=0)
-        
-    top_vals = top_vals.groupby('Gamut_Attribute_Name')['Normalized Value'].apply('; '.join).reset_index()
-        
-    vals = vals.drop(['Count'], axis=1)
-    vals = vals.groupby('Gamut_Attribute_Name')['Normalized Value'].apply('; '.join).reset_index()
-    
-    return vals, top_vals
 
 
 def match_category(df):
@@ -121,14 +52,14 @@ def grainger_process(grainger_df, grainger_sample, grainger_all, k):
     
     grainger_df['Grainger_Attribute_Name'] = pull.process_att(grainger_df['Grainger_Attribute_Name'])  #prep att name for merge
     
-    gamut_sku_list = gamut_skus(grainger_skus) #get gamut sku list to determine pim nodes to pull
+    gamut_sku_list = q.gamut_skus(grainger_skus) #get gamut sku list to determine pim nodes to pull
 
     if gamut_sku_list.empty == False:
         #create a dictionary of the unique gamut nodes that corresponde to the grainger node
         gamut_l3 = gamut_sku_list['Gamut_Node_ID'].unique()  #create list of pim nodes to pull
         for node in gamut_l3:
-            gamut_df = gamut_atts(node)  #get gamut attribute values for each gamut_l3 node
-            gamut_att_vals, gamut_sample_vals = gamut_values(gamut_df) #gamut_values exports a list of --all-- normalized values (temp_df) and sample_values
+            gamut_df = q.gamut_atts(node)  #get gamut attribute values for each gamut_l3 node
+            gamut_att_vals, gamut_sample_vals = q.gamut_values(gamut_df) #gamut_values exports a list of --all-- normalized values (temp_df) and sample_values
 #            temp_df, gamut_sample_vals = gamut_values(gamut_df, grainger_df) #gamut_values exports a list of --all-- normalized values (temp_df) and sample_values
 #            gamut_att_temp = pd.concat([gamut_att_temp, temp_df], axis=0, sort=False) #create list of gamut attribute values for all nodes
             gamut_sample_vals = gamut_sample_vals.rename(columns={'Normalized Value': 'Gamut Attribute Sample Values'})
@@ -175,9 +106,9 @@ search_data = fd.data_in(data_type, settings.directory_name)
 
 if data_type == 'node':
     for k in search_data:
-        grainger_df = gcom.grainger_q(grainger_attr_query, search_level, k)
+        grainger_df = q.gcom.grainger_q(grainger_attr_query, search_level, k)
         if grainger_df.empty == False:
-            grainger_att_vals, grainger_sample_vals = grainger_values(grainger_df)
+            grainger_att_vals, grainger_sample_vals = q.grainger_values(grainger_df)
             grainger_sample_vals = grainger_sample_vals.rename(columns={'Grainger_Attribute_Value': 'Grainger Attribute Sample Values'})
             grainger_att_vals = grainger_att_vals.rename(columns={'Grainger_Attribute_Value': 'Grainger ALL Values'})
             temp_df = grainger_process(grainger_df, grainger_sample_vals, grainger_att_vals, k)
@@ -195,6 +126,7 @@ attribute_df['Taxonomist Approved (yes/no)'] = ""
 attribute_df['Taxonomist Notes'] = ""
 
 #test = pull.determine_match(attribute_df, grainger_att_vals, gamut_att_vals)
+pull.determine_match(attribute_df)
 
 fd.attribute_match_data_out(settings.directory_name, attribute_df, search_level)
 
