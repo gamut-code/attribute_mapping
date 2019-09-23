@@ -16,7 +16,6 @@ from queries_PIM import grainger_attr_query
 pd.options.mode.chained_assignment = None
 
 
-
 def match_category(df):
     """compare data colected from matching file (match_df) with grainger and gamut data pulls and create a column to tell analysts
     whether attributes from the two systems have been matched"""

@@ -13,6 +13,7 @@ import string
 import query_code as q
 from fuzzywuzzy import fuzz
 from fuzzywuzzy import process
+from queries_PIM import grainger_attr_query
 
 
 from nltk.tokenize import RegexpTokenizer
@@ -65,7 +66,8 @@ def cat_filter(df, category, cat_filter):
 
 
 def lowercase(col):
-    col = col.astype(str).replace(r'\s*\.\s*', np.nan, regex=True)
+#    col = col.astype(str).replace(r'\s*\.\s*', np.nan, regex=True)
+    col = col.astype(str).replace(r'\s*\.\s*', regex=True)
     col = col.str.lower()    
     return col
 
@@ -127,23 +129,10 @@ def determine_match(df):
   #      prev_match[att] = prev_match[att].fillna("")
   #      print('{} \n\n {}'.format(att, prev_match[att]))
     for att in att_list:
-        #for col in df.select_dtypes([np.object]).columns:
-#        print('{} \n\n {}'.format(att, prev_match[att]))
-        #prev_match[att] = prev_match[att].astype(str).replace(r'\s*\.\s*', np.nan, regex=True)
-        #prev_match[att] = prev_match[att].str.lower()
         prev_match[att] = lowercase(prev_match[att])
-  #      prev_match[att] = prev_match[att].replace(np.nan, '', regex=True)
-        #grainger_att = process_att(grainger_att[att])
-        #gamut_att = process_att(gamut_att[att])
 
     #read in taxonomist approved column and act on yes entries
-    #prev_match['Taxonomist Approved (yes/no)'] = prev_match['Taxonomist Approved (yes/no)'].replace(r'\s*\.\s*', np.nan, regex=True)
-#    prev_match['Taxonomist Approved (yes/no)'] = prev_match['Taxonomist Approved (yes/no)'].fillna('')
-    #prev_match.loc[prev_match['Taxonomist Approved (yes/no)']].str.lower()
-    #prev_match['Taxonomist Approved (yes/no)'] = prev_match['Taxonomist Approved (yes/no)'].apply(lambda x: x.str.lower())
     prev_match['Taxonomist Approved (yes/no)'] = lowercase(prev_match['Taxonomist Approved (yes/no)'])
-    #prev_match['Taxonomist Approved (yes/no)'] = prev_match['Taxonomist Approved (yes/no)'].replace(r'\s*\.\s*', np.nan, regex=True)
-    #prev_match['Taxonomist Approved (yes/no)'] = prev_match['Taxonomist Approved (yes/no)'].str.lower()
 
     att_split = []
     
@@ -151,12 +140,11 @@ def determine_match(df):
         if prev_match['Taxonomist Approved (yes/no)'][idx] == 'yes':
             if prev_match['Identified Matching Gamut Attribute Name (use semi-colon to separate names)'][idx] != '':
                 att_split = prev_match['Identified Matching Gamut Attribute Name (use semi-colon to separate names)'][idx].split(';')
-             #   att_split = [x.lower for x in att_split]
-               # print('att_split ', att_split)
+                print('Gamut att_split ', att_split)
                 count = len(att_split)
-               # print('count ', count)
+                print('Gamut count ', count)
                 node = prev_match['Gamut_Node_ID'][idx]
-               # print('node ', node)
+                print('Gamut node ', node)
                 temp_att_df = q.gamut_atts(node)
                 temp_att_df['Gamut_Attribute_Name'] = lowercase(temp_att_df['Gamut_Attribute_Name'])
                 node_atts = temp_att_df['Gamut_Attribute_Name'].str.lower().unique()
@@ -179,11 +167,11 @@ def determine_match(df):
                         prev_match.loc[idx, 'Status'] = "Match"
                     else:
                         print('Node: {}    Attribute Name = {}    problem name'.format(node, att_split))
-            elif count > 1:
-                for attribute in att_split:
-                    for att in node_atts:
-                        if att == attribute:
-                            temp_df.loc[prev_match.index[idx]] = prev_match.iloc[idx]
+                elif count > 1:
+                    for attribute in att_split:
+                        if check_element(attribute, node_atts) == True:
+                            if att == attribute:
+                                temp_df.loc[prev_match.index[idx]] = prev_match.iloc[idx]
                                # temp_df = prev_match.loc[prev_match['Gamut_Attribute_Name'] == att]
                             tenp_df['Gamut_Attribute_Name'] = att
                             temp_df['Gamut_Node_ID'] = temp_att_df['Gamut_Node_ID']
@@ -194,30 +182,33 @@ def determine_match(df):
             elif prev_match['Identified Matching Grainger Attribute Name (use semi-colon to separate names)'][idx] != '':
                 att_split = prev_match['Identified Matching Grainger Attribute Name (use semi-colon to separate names)'][idx].split(';')
              #   att_split = [x.lower for x in att_split]
-               # print('att_split ', att_split)
+                print('Grainger att_split ', att_split)
                 count = len(att_split)
-               # print('count ', count)
+                print('Grainger count ', count)
                 node = prev_match['Grainger_Node_ID'][idx]
-               # print('node ', node)
-                temp_att_df = q.gamut_atts(node)
-                node_atts = temp_att_df['Gamut_Attribute_Name'].str.lower().unique()
-               # print('node_atts ', node_atts)
+                print('Grainger node ', node)
+                temp_att_df = q.gcom.grainger_q(grainger_attr_query, 'cat.CATEGORY_ID', node)
+                node_atts = temp_att_df['Grainger_Attribute_Name'].str.lower().unique()
+                print('node_atts ', node_atts)
                 node_atts = node_atts.tolist()
                 if count == 1:
                #     if att_split in node_atts:
                     if check_element(att_split, node_atts) == True:
-                       print('att == att_split')
+                        print('att == att_split')
                        # prev_match['Gamut_Attribute_Name'][idx] = att_split
-                       print(idx)
-                       prev_match.loc[idx, 'Gamut_Attribute_Name'] = att_split
-                       print('Gamut_Attribute_Name new ', prev_match['Gamut_Attribute_Name'][idx])
-                       prev_match.loc[idx, 'Gamut_Node_ID'] = node
-                       prev_match.loc[idx, 'Identified Matching Gamut Attribute Name (use semi-colon to separate names)'] = ""
-                       prev_match.loc[idx, 'Identified Matching Grainger Attribute Name (use semi-colon to separate names)'] = ""
-                       prev_match.loc[idx, 'Status'] = "Match"
+                        att_split = att_split.pop()
+                        prev_match.loc[idx, 'Grainger_Attribute_Name'] = att_split
+                        print('Grainger_Attribute_Name new ', prev_match['Grainger_Attribute_Name'][idx])
+                        attribute_ID = cat_filter(temp_att_df, 'Grainger_Attribute_Name', att_split)
+                        attribute_ID = attribute_ID['Grainger_Attr_ID'].unique()
+                        print('attribute ID ,', attribute_ID)
+                        prev_match.loc[idx, 'Identified Matching Gamut Attribute Name (use semi-colon to separate names)'] = ""
+                        prev_match.loc[idx, 'Identified Matching Grainger Attribute Name (use semi-colon to separate names)'] = ""
+                        prev_match.loc[idx, 'Graigner_Attr_ID'] = attribute_ID
+                        prev_match.loc[idx, 'Status'] = "Match"
                     else:
                         print('Node: {}    Attribute Name = {}    problem name'.format(node, att_split))
-
+ 
 
     path = 'F:\CGabriel\Grainger_Shorties\OUTPUT\PREV_MATCH.csv'
     prev_match.to_csv(path)
