@@ -8,18 +8,19 @@ from pathlib import Path
 import pandas as pd
 import settings
 import pandas.io.formats.excel
+import os
 
 
 def search_type():
     """choose which type of data to import -- impacts which querries will be run"""
     while True:
         try:
-            data_type = input("Search by: \n1. Blue (node)\n2. Yellow\n3. SKU\n4. Other ")
+            data_type = input("Search by: \n1. Grainger Blue (node) \n2. Gamut\n3. SKU ")
             if data_type in ['1', 'node', 'Node', 'NODE', 'blue', 'Blue', 'BLUE', 'b', 'B']:
-                data_type = 'node'
+                data_type = 'grainger_query'
                 break
-            elif data_type in ['2', 'yellow', 'Yellow', 'YELLOW', 'y', 'Y']:
-                data_type = 'yellow'
+            elif data_type in ['2', 'gamut', 'Gamut', 'GAMUT', 'g', 'G']:
+                data_type = 'gamut_query'
                 break
             elif data_type in ['3', 'sku', 'Sku', 'SKU', 's', 'S']:
                 data_type = 'sku'
@@ -74,10 +75,10 @@ def get_col_widths(df):
 def data_in(data_type, directory_name):
 #    type_list = ['Node', 'SKU']
     
-    if data_type == 'node':
+    if data_type == 'grainger_query':
         search_data = input('Input Blue node ID or hit ENTER to read from file: ')
-    elif data_type == 'yellow':
-        search_data = input('Input Yellow node ID or hit ENTER to read from file: ')
+    elif data_type == 'gamut_query':
+        search_data = input ('Input Gamut terminal node ID or ENTER to read from file: ')
     elif data_type == 'sku':
         search_data = input ('Input SKU or hit ENTER to read from file: ')
         
@@ -87,11 +88,8 @@ def data_in(data_type, directory_name):
     else:
         file_data = settings.get_file_data()
 
-        if data_type == 'node':
+        if data_type == 'grainger_query' or data_type == 'gamut_query':
             search_data = [int(row[0]) for row in file_data[1:]]
-            return search_data
-        elif data_type == 'yellow':
-            search_data = [str(row[0]) for row in file_data[1:]]
             return search_data
         elif data_type == 'sku':
             search_data = [row[0] for row in file_data[1:]]
@@ -115,6 +113,8 @@ def outfile_name (directory_name, quer, df, search_level, gamut='no'):
                 outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,1], df.iloc[0,2], quer)
             elif search_level == 'cat.FAMILY_ID':
                 outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,3], df.iloc[0,4], quer)
+            elif quer == 'HIER' or quer == 'ATTR':
+                outfile = Path(directory_name)/"{} {}.xlsx".format(df.iloc[0,3], quer)
             else:
                 outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)
     return outfile
@@ -126,7 +126,7 @@ def attribute_match_data_out(directory_name, df, search_level):
 
     quer = 'GRAINGER-GAMUT'
     
-    order = [10, 0, 1, 2, 3, 4, 5, 14, 15, 16, 13, 17, 8, 9, 20, 24, 23, 11, 21, 6, 7, 25, 26, 27, 28, 29, 18, 19] 
+    order = [10, 0, 1, 2, 3, 4, 5, 14, 15, 16, 13, 17, 24, 6, 7, 18, 19, 23, 8, 9, 20, 11, 21] 
     df = col_order(df, order)
     outfile = outfile_name (directory_name, quer, df, search_level)
     
@@ -171,20 +171,35 @@ def attribute_match_data_out(directory_name, df, search_level):
     worksheet1.set_column('K:K', 12, layout)
     worksheet1.set_column('L:L', 30, layout)
     worksheet1.set_column('M:M', 40, layout)
-    worksheet1.set_column('N:N', 40, layout)
-    worksheet1.set_column('O:O', 40, layout)
-    worksheet1.set_column('P:P', 30, layout)
-    worksheet1.set_column('Q:Q', 20, layout)
-    worksheet1.set_column('R:R', 30, layout)
-    worksheet1.set_column('S:S', 30, layout)
-    worksheet1.set_column('T:T', 12, layout)
-    worksheet1.set_column('U:U', 30, layout)
-    worksheet1.set_column('V:V', 30, layout)
-    worksheet1.set_column('W:W', 30, layout)
-    worksheet1.set_column('X:X', 30, layout)
-    worksheet1.set_column('Y:Y', 15, layout)
-    worksheet1.set_column('Z:Z', 30, layout)
-    worksheet1.set_column('AA:AA', 12, layout)
-    worksheet1.set_column('AB:AB', 30, layout)
+    worksheet1.set_column('N:N', 12, layout)
+    worksheet1.set_column('O:O', 30, layout)
+    worksheet1.set_column('P:P', 12, layout)
+    worksheet1.set_column('Q:Q', 30, layout)
+    worksheet1.set_column('R:R', 20, layout)
+    worksheet1.set_column('S:S', 40, layout)
+    worksheet1.set_column('T:T', 40, layout)
+    worksheet1.set_column('U:U', 40, layout)
+    worksheet1.set_column('V:V', 50, layout)
+    worksheet1.set_column('W:W', 50, layout)
         
     writer.save()
+    
+
+#general output to xlsx file, used for the basic query
+def data_out(directory_name, df, quer, search_level):
+    """basic output for any Gamut query""" 
+    os.chdir(directory_name) #set output file path
+    
+    if df.empty == False:
+      #  grainger_df['CATEGORY_NAME'] = modify_name(grainger_df['CATEGORY_NAME'], '/', '_') #clean up node names to include them in file names
+        outfile = outfile_name (directory_name, quer, df, search_level)
+        writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
+        df.to_excel (writer, sheet_name="DATA", startrow=0, startcol=0, index=False)
+        worksheet = writer.sheets['DATA']
+        col_widths = get_col_widths(df)
+        col_widths = col_widths[1:]
+        for i, width in enumerate(col_widths):
+            worksheet.set_column(i, i, width) 
+        writer.save()
+    else:
+        print('EMPTY DATAFRAME')
