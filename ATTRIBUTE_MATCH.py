@@ -11,7 +11,7 @@ import data_pull as pull
 import data_process as process
 import file_data_att as fd
 import settings
-from queries_PIM import grainger_attr_query, gamut_attr_values
+from queries_PIM import grainger_attr_query, gamut_attr_values, gamut_attr_query
 import time
 
 
@@ -42,11 +42,13 @@ def grainger_process(grainger_df, grainger_sample, grainger_all, k):
     df = pd.DataFrame()
     gamut_sample_vals = pd.DataFrame()
     gamut_att_vals = pd.DataFrame()
+    order = 'normal'
+    
   #  gamut_l3 = dict()
     cat_name = grainger_df['Category_Name'].unique()
     cat_name = list(cat_name)
     cat_name = cat_name.pop()
-    print('cat name = ', cat_name)
+    print('cat name = {} {}'.format(k, cat_name))
     
     grainger_skus = grainger_df.drop_duplicates(subset='Grainger_SKU')  #create list of unique grainger skus that feed into gamut query
     grainger_sku_count = len(grainger_skus)
@@ -57,53 +59,71 @@ def grainger_process(grainger_df, grainger_sample, grainger_all, k):
                                                         ' > ' + grainger_df['Category_Name']
     grainger_df = grainger_df.drop(['Grainger_SKU', 'Grainger_Attribute_Value'], axis=1) #remove unneeded columns
     grainger_df = pd.merge(grainger_df, grainger_sample, on=['Grainger_Attribute_Name'])
-    grainger_df = pd.merge(grainger_df, grainger_all, on=['Grainger_Attribute_Name'])
+    grainger_df = pd.merge(grainger_df, grainger_all, on=['Grainger_Attr_ID'])
     
     grainger_df['Grainger_Attribute_Name'] = process.process_att(grainger_df['Grainger_Attribute_Name'])  #prep att name for merge
-    grainger_df.to_csv ("F:/CGabriel/Grainger_Shorties/OUTPUT/grainger_test.csv")
+    #grainger_df.to_csv ("F:/CGabriel/Grainger_Shorties/OUTPUT/grainger_test.csv")
     
     gamut_skus = q.gamut_skus(grainger_skus) #get gamut sku list to determine pim nodes to pull
-    gamut_skus = gamut_skus.drop_duplicates(subset='Gamut_SKU')
+    #gamut_skus = gamut_skus.drop_duplicates(subset='Gamut_SKU')
+ #   print('gamut sku count = ', gamut_sku_count)
 
- #   gamut_sku_counts = gamut_sku_list.groupby('Gamut_SKU')['Gamut_SKU']).count())
     if gamut_skus.empty == False:
         #create a dictionary of the unique gamut nodes that corresponde to the grainger node
         gamut_l3 = gamut_skus['Gamut_Node_ID'].unique()  #create list of pim nodes to pull
         for node in gamut_l3:
-            gamut_df = q.gamut_atts(gamut_attr_query, node, 'tax.id')  #tprod."categoryId"')  #get gamut attribute values for each gamut_l3 node
-            gamut_att_vals, gamut_sample_vals = q.gamut_values(gamut_attr_values, node, 'tax.id') #gamut_values exports a list of --all-- normalized values (temp_df) and sample_values
-            gamut_sample_vals = gamut_sample_vals.rename(columns={'Normalized Value': 'Gamut Attribute Sample Values'})
-            gamut_att_vals = gamut_att_vals.rename(columns={'Normalized Value': 'Gamut ALL Values'})
+            gamut_df = q.gamut_atts(gamut_attr_query, node, 'tax.id')  #tprod."categoryId"')  #get gamut attribute values for each gamut_l3 node\
             
+            gamut_att_vals, gamut_sample_vals = q.gamut_values(gamut_attr_values, node, 'tax.id') #gamut_values exports a list of --all-- normalized values and sample_values
+            if gamut_att_vals.empty==False:
+                gamut_sample_vals = gamut_sample_vals.rename(columns={'Normalized Value': 'Gamut Attribute Sample Values'})
+               # gamut_att_vals = gamut_att_vals.rename(columns={'Normalized Value': 'Gamut ALL Values'})
+                
             node_name = gamut_df['Gamut_Node_Name'].unique()
             node_name = list(node_name)
             node_name = node_name.pop()
-            print('node name = ', node_name)
+            print('node name = {} {}'.format(node, node_name))
 
             gamut_df = gamut_df.drop_duplicates(subset='Gamut_Attr_ID')  #gamut attribute IDs are unique, so no need to group by pim node before getting unique
-            #gamut_df = gamut_df.drop(['Gamut_SKU', 'Grainger_SKU', 'Original Value', 'Normalized Value'], axis=1) #normalized values are collected as sample_value
+                #gamut_df = gamut_df.drop(['Gamut_SKU', 'Grainger_SKU', 'Original Value', 'Normalized Value'], axis=1) #normalized values are collected as sample_value
             
             grainger_df['Gamut_Node_ID'] = int(node) #add correlating gamut node to grainger_df
-
-            gamut_df = pd.merge(gamut_df, gamut_sample_vals, on=['Gamut_Attribute_Name'])  #add t0p 5 normalized values to report
-            gamut_df = pd.merge(gamut_df, gamut_att_vals, on=['Gamut_Attribute_Name'])  #add t0p 5 normalized values to report
+          #  grainger_df['grainger_sku_count'] = grainger_sku_count
+            
+            if gamut_att_vals.empty==False:
+                gamut_df = pd.merge(gamut_df, gamut_sample_vals, on=['Gamut_Attribute_Name'])  #add t0p 5 normalized values to report
+                gamut_df = pd.merge(gamut_df, gamut_att_vals, on=['Gamut_Attr_ID'])  #add t0p 5 normalized values to report
+            else:
+                order = 'alt'
+                
             gamut_df['Category_ID'] = int(k)  #add grainger Category_ID column for gamut attributes
             gamut_df['Gamut_Attribute_Name'] = process.process_att(gamut_df['Gamut_Attribute_Name'])  #prep att name for merge
-            #create df based on names that match exactly
-            gamut_df.to_csv ("F:/CGabriel/Grainger_Shorties/OUTPUT/gamut_test.csv")
- 
+                #create df based on names that match exactly
+#                gamut_df.to_csv ("F:/CGabriel/Grainger_Shorties/OUTPUT/gamut_test.csv")
+            
+            skus = gamut_skus[gamut_skus['Gamut_Node_ID'] == node]
+            #gamut_sku_count = len(skus)
+ #           temp_skus = process.cat_filter(gamut_sku_count, 'Gamut_Node_ID', node)
+     #       temp_skus = temp_skus.reset_index()
+#            gamut_df['gamut_sku_count'] = len(skus)#temp_skus['Gamut_SKU']
+ #           print('node {} sku count = {}'.format(node, gamut_df['gamut_sku_count']))
+
+
             temp_df = pd.merge(grainger_df, gamut_df, left_on=['Grainger_Attribute_Name', 'Category_ID', 'Gamut_Node_ID'], 
-                                        right_on=['Gamut_Attribute_Name', 'Category_ID', 'Gamut_Node_ID'], how='outer')
+                                            right_on=['Gamut_Attribute_Name', 'Category_ID', 'Gamut_Node_ID'], how='outer')
             temp_df = match_category(temp_df) #compare grainger and gamut atts and create column to say whether they match
  
-#            for row in temp_df.itertuples():
- #               temp_df.at[row.Index, 'Grainger-Gamut Terminal Node Mapping'] = graginer_df['Category_Name']+' -- '+ gamut_df['Gamut_Node_Name']
+#                for row in temp_df.itertuples():
+ #                   temp_df.at[row.Index, 'Grainger-Gamut Terminal Node Mapping'] = graginer_df['Category_Name']+' -- '+ gamut_df['Gamut_Node_Name']
+            temp_df['grainger_sku_count'] = grainger_sku_count
+            temp_df['gamut_sku_count'] = len(skus)#temp_skus['Gamut_SKU']
+
             temp_df['Grainger-Gamut Terminal Node Mapping'] = cat_name+' -- '+node_name
-            
-            df = pd.concat([df, temp_df], axis=0) #add prepped df for this gamut node to the final df
+            temp_df['Gamut/Grainger SKU Counts'] = temp_df['gamut_sku_count'].map(str)+' / '+temp_df['grainger_sku_count'].map(str)
+                
+            df = pd.concat([df, temp_df], axis=0, sort=False) #add prepped df for this gamut node to the final df
 
-
-    return df  #where gamut_att_temp is the list of all normalized values for gamut attributes
+    return df, order  #where gamut_att_temp is the list of all normalized values for gamut attributes
     
 
 #determine SKU or node search
@@ -117,6 +137,7 @@ attribute_df = pd.DataFrame()
 grainger_att_vals = pd.DataFrame()
 grainger_sample_vals = pd.DataFrame()
 gamut_att_vals = pd.DataFrame
+column_order = 'normal'
 
 data_type = fd.search_type()
 
@@ -136,7 +157,9 @@ if data_type == 'grainger_query':
                 grainger_att_vals, grainger_sample_vals = q.grainger_values(grainger_df)
                 grainger_sample_vals = grainger_sample_vals.rename(columns={'Grainger_Attribute_Value': 'Grainger Attribute Sample Values'})
                 grainger_att_vals = grainger_att_vals.rename(columns={'Grainger_Attribute_Value': 'Grainger ALL Values'})
-                temp_df = grainger_process(grainger_df, grainger_sample_vals, grainger_att_vals, k)
+                temp_df, order = grainger_process(grainger_df, grainger_sample_vals, grainger_att_vals, k)
+                if order == 'alt':
+                    column_order = 'alt'
                 attribute_df = pd.concat([attribute_df, temp_df], axis=0, sort=False)
                 print ('Grainger ', k)
             else:
@@ -152,11 +175,13 @@ if data_type == 'grainger_query':
             if grainger_df.empty == False:
                 grainger_att_vals, grainger_sample_vals = q.grainger_values(grainger_df)
                 grainger_sample_vals = grainger_sample_vals.rename(columns={'Grainger_Attribute_Value': 'Grainger Attribute Sample Values'})
-                grainger_att_vals = grainger_att_vals.rename(columns={'Grainger_Attribute_Value': 'Grainger ALL Values'})
-                temp_df = grainger_process(grainger_df, grainger_sample_vals, grainger_att_vals, k)
+                #grainger_att_vals = grainger_att_vals.rename(columns={'Grainger_Attribute_Value': 'Grainger ALL Values'})
+                temp_df, order = grainger_process(grainger_df, grainger_sample_vals, grainger_att_vals, k)
+                if order == 'alt':
+                    column_order = 'alt'
                 attribute_df = pd.concat([attribute_df, temp_df], axis=0, sort=False)
                 print ('Grainger ', k)
-            else:
+else:
                 print('No attribute data')   
 
 #        attribute_df['Grainger-Gamut Terminal Node Mapping'] = attribute_df['Category_Name']+' -- '+attribute_df['Gamut_Node_Name']
@@ -170,10 +195,10 @@ attribute_df = attribute_df.drop(['Count'], axis=1)
 
 #pull.previous_match(attribute_df)
 
-data = process.attribute_name_match(attribute_df)
+#data = process.attribute_name_match(attribute_df)
 
 
-fd.attribute_match_data_out(settings.directory_name, attribute_df, search_level)
+fd.attribute_match_data_out(settings.directory_name, attribute_df, column_order, search_level)
 
                      
                      

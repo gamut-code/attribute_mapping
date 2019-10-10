@@ -103,11 +103,11 @@ def outfile_name (directory_name, quer, df, search_level, gamut='no'):
     else:   
         if quer == 'GRAINGER-GAMUT':
             if search_level == 'cat.SEGMENT_ID':    #set directory path and name output file
-                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,1], df.iloc[0,2], quer)
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,2], df.iloc[0,3], quer)
             elif search_level == 'cat.FAMILY_ID':
-                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,3], df.iloc[0,4], quer)
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,4], df.iloc[0,5], quer)
             else:
-                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,6], df.iloc[0,7], quer)
         else:
             if search_level == 'cat.SEGMENT_ID':
                 outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,1], df.iloc[0,2], quer)
@@ -120,14 +120,19 @@ def outfile_name (directory_name, quer, df, search_level, gamut='no'):
     return outfile
     
 
-def attribute_match_data_out(directory_name, df, search_level):
+def attribute_match_data_out(directory_name, df, column_order, search_level):
     # Create a Pandas Excel writer using XlsxWriter as the engine.
     df['Category_Name'] = modify_name(df['Category_Name'], '/', '_') #clean up node names to include them in file names       
 
     quer = 'GRAINGER-GAMUT'
     
-    order = [10, 0, 1, 2, 3, 4, 5, 14, 15, 16, 13, 17, 24, 6, 7, 18, 19, 23, 8, 9, 20, 11, 21] 
-    df = col_order(df, order)
+    print('column_order = ', column_order)
+    if column_order == 'normal':
+        order = [27, 10, 0, 1, 2, 3, 4, 5, 14, 15, 16, 13, 17, 26, 6, 7, 18, 19, 23, 8, 9, 20, 11, 21]
+    elif column_order == 'alt':
+        order = [25, 10, 0, 1, 2, 3, 4, 5, 14, 15, 16, 13, 17, 24, 6, 7, 18, 19, 21, 8, 9, 20, 11, 26]
+
+    df = col_order(df, order)    
     outfile = outfile_name (directory_name, quer, df, search_level)
     
     writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
@@ -158,29 +163,30 @@ def attribute_match_data_out(directory_name, df, search_level):
     #set header different
     worksheet1.set_row(0, None, header_fmt)
     
-    worksheet1.set_column('A:A', 30, layout)
-    worksheet1.set_column('B:B', 12, layout)
-    worksheet1.set_column('C:C', 30, layout)
-    worksheet1.set_column('D:D', 12, layout)
-    worksheet1.set_column('E:E', 30, layout)
-    worksheet1.set_column('F:F', 12, layout)
-    worksheet1.set_column('G:G', 30, layout)
+    worksheet1.set_column('A:A', 12, layout)
+    worksheet1.set_column('B:B', 30, layout)
+    worksheet1.set_column('C:C', 12, layout)
+    worksheet1.set_column('D:D', 30, layout)
+    worksheet1.set_column('E:E', 12, layout)
+    worksheet1.set_column('F:F', 30, layout)
+    worksheet1.set_column('G:G', 12, layout)
     worksheet1.set_column('H:H', 30, layout)
-    worksheet1.set_column('I:I', 12, layout)
-    worksheet1.set_column('J:J', 30, layout)
-    worksheet1.set_column('K:K', 12, layout)
-    worksheet1.set_column('L:L', 30, layout)
-    worksheet1.set_column('M:M', 40, layout)
-    worksheet1.set_column('N:N', 12, layout)
-    worksheet1.set_column('O:O', 30, layout)
-    worksheet1.set_column('P:P', 12, layout)
-    worksheet1.set_column('Q:Q', 30, layout)
-    worksheet1.set_column('R:R', 20, layout)
-    worksheet1.set_column('S:S', 40, layout)
+    worksheet1.set_column('I:I', 30, layout)
+    worksheet1.set_column('J:J', 12, layout)
+    worksheet1.set_column('K:K', 30, layout)
+    worksheet1.set_column('L:L', 12, layout)
+    worksheet1.set_column('M:M', 30, layout)
+    worksheet1.set_column('N:N', 40, layout)
+    worksheet1.set_column('O:O', 12, layout)
+    worksheet1.set_column('P:P', 30, layout)
+    worksheet1.set_column('Q:Q', 12, layout)
+    worksheet1.set_column('R:R', 30, layout)
+    worksheet1.set_column('S:S', 20, layout)
     worksheet1.set_column('T:T', 40, layout)
     worksheet1.set_column('U:U', 40, layout)
-    worksheet1.set_column('V:V', 50, layout)
+    worksheet1.set_column('V:V', 40, layout)
     worksheet1.set_column('W:W', 50, layout)
+    worksheet1.set_column('X:X', 50, layout)
         
     writer.save()
     

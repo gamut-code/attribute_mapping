@@ -73,6 +73,7 @@ def grainger_values(df):
     """find the top 5 most used values for each attribute and return as sample_values"""
     top_vals = pd.DataFrame()
     temp_att = pd.DataFrame()
+    all_vals = pd.DataFrame()
     
     df['Count'] =1
     atts = df['Grainger_Attribute_Name'].unique()
@@ -85,37 +86,61 @@ def grainger_values(df):
         #pull the top 10 values and put into 'sample' field
         temp_att = temp_att.sort_values(by=['Count'], ascending=[False]).head(10)
         top_vals = pd.concat([top_vals, temp_att], axis=0)
-        
+        #put all attribute values into a single string for TF-IDF processing later
+        temp_df = df.loc[df['Grainger_Attribute_Name']== attribute]
+        temp_df['Grainger ALL Values'] = ' '.join(item for item in temp_df['Grainger_Attribute_Value'] if item)
+        all_vals= pd.concat([all_vals, temp_df], axis=0)
+
     top_vals = top_vals.groupby('Grainger_Attribute_Name')['Grainger_Attribute_Value'].apply('; '.join).reset_index()
     
-    vals = vals.drop(['Count'], axis=1)
-    vals = vals.groupby('Grainger_Attribute_Name')['Grainger_Attribute_Value'].apply('; '.join).reset_index()
-    
-    return vals, top_vals
+    #vals = vals.drop(['Count'], axis=1)
+    #vals = vals.groupby('Grainger_Attribute_Name')['Grainger_Attribute_Value'].apply('; '.join).reset_index()
+    all_vals = all_vals.drop_duplicates(subset='Grainger_Attr_ID')
+    all_vals = all_vals[['Grainger_Attr_ID', 'Grainger ALL Values']]
+        
+    return all_vals, top_vals
 
 
 def gamut_values(query, node, query_type):
     """find the top 5 most used values for each attribute and return as sample_values"""
     top_vals = pd.DataFrame()
     temp_att = pd.DataFrame()
+    all_vals = pd.DataFrame()
     
     df = gamut.gamut_q15(query, query_type, node)
     
-    df['Count'] = 1
-    atts = df['Gamut_Attribute_Name'].unique()
+#    skus = df.drop_duplicates(subset='Gamut_SKU')  #create list of unique grainger skus that feed into gamut query
+ #   sku_count = len(skus)
     
-    vals = pd.DataFrame(df.groupby(['Gamut_Attribute_Name', 'Normalized Value'])['Count'].sum())
-    vals = vals.reset_index()
+    if df.empty==False:
+        df['Count'] = 1
+        atts = df['Gamut_Attribute_Name'].unique()
     
-    for attribute in atts:
-        temp_att = vals.loc[vals['Gamut_Attribute_Name']== attribute]
-        #pull the top 10 values and put into 'sample' field
-        temp_att = temp_att.sort_values(by=['Count'], ascending=[False]).head(10)
-        top_vals = pd.concat([top_vals, temp_att], axis=0)
+        vals = pd.DataFrame(df.groupby(['Gamut_Attribute_Name', 'Normalized Value'])['Count'].sum())
+        vals = vals.reset_index()
+ 
+        for attribute in atts:
+            temp_att = vals.loc[vals['Gamut_Attribute_Name']== attribute]
+            #pull the top 10 values and put into 'sample' field
+            temp_att = temp_att.sort_values(by=['Count'], ascending=[False]).head(10)
+            top_vals = pd.concat([top_vals, temp_att], axis=0)
+            #put all attribute values into a single string for TF-IDF processing later            
+            temp_df = df.loc[df['Gamut_Attribute_Name']== attribute]
+            temp_df['Gamut ALL Values'] = ' '.join(item for item in temp_df['Normalized Value'] if item)
+            all_vals= pd.concat([all_vals, temp_df], axis=0)
+                        
+        top_vals = top_vals.groupby('Gamut_Attribute_Name')['Normalized Value'].apply('; '.join).reset_index()
+
+#        vals_dict = dict(zip(vals.))
         
-    top_vals = top_vals.groupby('Gamut_Attribute_Name')['Normalized Value'].apply('; '.join).reset_index()
+#        vals = vals.drop(['Count'], axis=1)
+#        vals = vals.groupby('Gamut_Attribute_Name')['Normalized Value'].apply('; '.join).reset_index()
         
-    vals = vals.drop(['Count'], axis=1)
-    vals = vals.groupby('Gamut_Attribute_Name')['Normalized Value'].apply('; '.join).reset_index()
-    
-    return vals, top_vals
+        all_vals = all_vals.drop_duplicates(subset='Gamut_Attr_ID')
+        all_vals = all_vals[['Gamut_Attr_ID', 'Gamut ALL Values']]
+    else:
+        print('Gamut node {} NO VALUES'.format(node))
+     #   vals = pd.DataFrame(columns=['Gamut_Attribute_Name', 'Normalized Value'])
+      #  top_vals = pd.DataFrame(columns=['Gamut_Attribute_Name', 'Normalized Value'])
+        
+    return all_vals, top_vals

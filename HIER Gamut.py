@@ -27,6 +27,7 @@ def gamut_data(grainger_df):
 gamut_df = pd.DataFrame()
 grainger_df = pd.DataFrame()
 
+quer = 'HIER'
 search_level = 'tax.id'
 
 data_type = fd.search_type()
@@ -49,9 +50,8 @@ elif data_type == 'sku':
         if gamut_df.empty == False:
             gamut = 'yes'
             grainger_df = grainger_df.merge(gamut_df, how="left", on=["Grainger_SKU"])
-            fd.data_out(settings.directory_name, grainger_df, search_level)
+            fd.data_out(settings.directory_name, grainger_df, quer, search_level)
     else:
         print('No SKU data for ', sku_str)
 
-quer = 'HIER'
 fd.data_out(settings.directory_name, gamut_df, quer, search_level)
