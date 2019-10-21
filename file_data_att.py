@@ -128,10 +128,11 @@ def attribute_match_data_out(directory_name, df, column_order, search_level):
     
     print('column_order = ', column_order)
     if column_order == 'normal':
-        order = [27, 10, 0, 1, 2, 3, 4, 5, 14, 15, 16, 13, 17, 26, 6, 7, 18, 19, 23, 8, 9, 20, 11, 21]
+#        order = [27, 10, 0, 1, 2, 3, 4, 5, 17, 14, 15, 13, 16, 26, 6, 7, 18, 19, 23, 8, 9, 20, 11, 21]
+        order = [29, 10, 0, 1, 2, 3, 4, 5, 18, 15, 16, 14, 17, 28, 6, 7, 19, 20, 25, 8, 9, 21, 11, 22, 13, 24]
     elif column_order == 'alt':
-        order = [25, 10, 0, 1, 2, 3, 4, 5, 14, 15, 16, 13, 17, 24, 6, 7, 18, 19, 21, 8, 9, 20, 11, 26]
-
+        order = [25, 10, 0, 1, 2, 3, 4, 5, 17, 14, 15, 13, 16, 24, 6, 7, 18, 19, 21, 8, 9, 20, 11, 26]
+            
     df = col_order(df, order)    
     outfile = outfile_name (directory_name, quer, df, search_level)
     

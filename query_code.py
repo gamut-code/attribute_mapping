@@ -8,8 +8,7 @@ Created on Thu Sep 19 10:10:23 2019
 import pandas as pd
 from gamut_query_15 import GamutQuery_15
 from grainger_query import GraingerQuery
-from queries_PIM import gamut_basic_query, gamut_attr_query, gamut_attr_values,\
-                            grainger_attr_query, grainger_name_query, grainger_basic_query
+from queries_PIM import gamut_basic_query, grainger_attr_query, grainger_name_query, grainger_basic_query
 
 
 gcom = GraingerQuery()
@@ -108,10 +107,7 @@ def gamut_values(query, node, query_type):
     all_vals = pd.DataFrame()
     
     df = gamut.gamut_q15(query, query_type, node)
-    
-#    skus = df.drop_duplicates(subset='Gamut_SKU')  #create list of unique grainger skus that feed into gamut query
- #   sku_count = len(skus)
-    
+        
     if df.empty==False:
         df['Count'] = 1
         atts = df['Gamut_Attribute_Name'].unique()
@@ -130,17 +126,10 @@ def gamut_values(query, node, query_type):
             all_vals= pd.concat([all_vals, temp_df], axis=0)
                         
         top_vals = top_vals.groupby('Gamut_Attribute_Name')['Normalized Value'].apply('; '.join).reset_index()
-
-#        vals_dict = dict(zip(vals.))
-        
-#        vals = vals.drop(['Count'], axis=1)
-#        vals = vals.groupby('Gamut_Attribute_Name')['Normalized Value'].apply('; '.join).reset_index()
         
         all_vals = all_vals.drop_duplicates(subset='Gamut_Attr_ID')
         all_vals = all_vals[['Gamut_Attr_ID', 'Gamut ALL Values']]
     else:
         print('Gamut node {} NO VALUES'.format(node))
-     #   vals = pd.DataFrame(columns=['Gamut_Attribute_Name', 'Normalized Value'])
-      #  top_vals = pd.DataFrame(columns=['Gamut_Attribute_Name', 'Normalized Value'])
         
     return all_vals, top_vals

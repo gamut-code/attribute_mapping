@@ -32,6 +32,10 @@ search_level = 'tax.id'
 
 data_type = fd.search_type()
 
+if data_type == 'node':
+    search_level = fd.blue_search_level()
+
+
 search_data = fd.data_in(data_type, settings.directory_name)
 
 if data_type == 'gamut_query':
