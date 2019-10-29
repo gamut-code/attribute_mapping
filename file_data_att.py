@@ -56,14 +56,6 @@ def modify_name(df, replace_char, replace_with):
     return df.str.replace(replace_char, replace_with)
 
 
-def col_order(df, order):
-    """arrange data for output"""
-    cols = df.columns.tolist()
-    cols = [cols[i] for i in order]
-    df = df[cols]
-    return df
-
-
 def get_col_widths(df):
     #find maximum length of the index column
     idx_max = max([len(str(s)) for s in df.index.values] + [len(str(df.index.name))])
@@ -118,24 +110,28 @@ def outfile_name (directory_name, quer, df, search_level, gamut='no'):
             else:
                 outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)
     return outfile
-    
 
-def attribute_match_data_out(directory_name, df, column_order, search_level):
+    
+def attribute_match_data_out(directory_name, df, search_level):
     # Create a Pandas Excel writer using XlsxWriter as the engine.
     df['Category_Name'] = modify_name(df['Category_Name'], '/', '_') #clean up node names to include them in file names       
 
     quer = 'GRAINGER-GAMUT'
     
-    print('column_order = ', column_order)
-    if column_order == 'normal':
-#        order = [27, 10, 0, 1, 2, 3, 4, 5, 17, 14, 15, 13, 16, 26, 6, 7, 18, 19, 23, 8, 9, 20, 11, 21]
-        order = [29, 10, 0, 1, 2, 3, 4, 5, 18, 15, 16, 14, 17, 28, 6, 7, 19, 20, 25, 8, 9, 21, 11, 22, 13, 24]
-    elif column_order == 'alt':
-        order = [25, 10, 0, 1, 2, 3, 4, 5, 17, 14, 15, 13, 16, 24, 6, 7, 18, 19, 21, 8, 9, 20, 11, 26]
-            
-    df = col_order(df, order)    
-    outfile = outfile_name (directory_name, quer, df, search_level)
+    #output raw files before organizing/editing columns for human file
+
+    columnsTitles = ['Gamut/Grainger SKU Counts', 'Grainger Blue Path', 'Segment_ID', 'Segment_Name', \
+                     'Family_ID', 'Family_Name', 'Category_ID', 'Category_Name', 'Gamut_PIM_Path', \
+                     'Gamut_Category_ID', 'Gamut_Category_Name', 'Gamut_Node_ID', 'Gamut_Node_Name', \
+                     'Grainger-Gamut Terminal Node Mapping', 'Grainger_Attr_ID', 'Grainger_Attribute_Name',\
+                     'Gamut_Attr_ID', 'Gamut_Attribute_Name', 'Matching', 'Grainger_Attribute_Definition', \
+                     'Grainger_Category_Specific_Definition', 'Gamut_Attribute_Definition',\
+                     'Grainger Attribute Sample Values', 'Gamut Attribute Sample Values', \
+                     'alt_grainger_name', 'alt_gamut_name']
     
+    df = df.reindex(columns=columnsTitles)
+    outfile = outfile_name (directory_name, quer, df, search_level)
+
     writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
     
     pd.io.formats.excel.header_style = None
@@ -154,12 +150,10 @@ def attribute_match_data_out(directory_name, df, column_order, search_level):
     header_fmt = workbook.add_format()
     header_fmt.set_text_wrap('text_wrap')
     header_fmt.set_bold()
-    #header_fmt.set_bg_color('#FF0000')
 
     num_layout = workbook.add_format()
     num_layout.set_num_format('##0.00')
                               
-        
     #setup display for Stats sheet
     #set header different
     worksheet1.set_row(0, None, header_fmt)
@@ -190,8 +184,8 @@ def attribute_match_data_out(directory_name, df, column_order, search_level):
     worksheet1.set_column('X:X', 50, layout)
         
     writer.save()
-    
-
+ 
+        
 #general output to xlsx file, used for the basic query
 def data_out(directory_name, df, quer, search_level):
     """basic output for any Gamut query""" 

@@ -43,6 +43,8 @@ def process_att(attribute):
  #   pat= re.compile(r"\.\(\d/\d\)$")
     pat = re.compile(r" \(..\.\)")
     attribute = attribute.str.replace(pat, "")
+   # attribute = attribute.str.replace('  (merch)', "")
+    attribute= attribute.str.replace('dia.', 'diameter')
     return attribute
 
 

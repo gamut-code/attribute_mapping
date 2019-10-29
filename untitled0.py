@@ -8,158 +8,190 @@ Created on Sun Oct 20 23:11:41 2019
 import string
 from collections import Counter
 from pprint import pprint
-import gzip
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
+import pandas as pd
 import numpy as np
-from numpy.linalg import svd
-from numpy import diag
+from spacy.lang.en import English
+from spacy.lang.en.stop_words import STOP_WORDS
 
-stopwords = set([word.lower().strip() for word in open("C:/Users/xcxg109/Documents/GitHub/FromScratch/NLP/data/nltk_stopwords.txt", "rt").readlines()])
 
-def extract_words(text, stopwords):
-    temp = text.split() # Split the text on whitespace
-    text_words = []
+def cat_filter(df, category, cat_filter):
+    cat_filter = df.loc[df[category]== cat_filter]
+    return cat_filter
 
-    punctuation = set(string.punctuation)
+
+def get_words(text):    
+#    doc = remove_punctuation(text)
+    token_list = []
+    words = []
+
+    nlp = English()  #load Spacy English tokenizer
     
-    #Keep #tags and @mentions
-    punctuation.remove("#")
-    punctuation.remove("@")
+    doc = nlp(text)
     
-    for word in temp:
-        # Remove any punctuation characters present in the beginning of the word
-        while len(word) > 0 and word[0] in punctuation:
-            word = word[1:]
+    # Create list of word tokens and use Spacy for lemmatization
+    for token in doc:
+        token.lemma_
+        token_list.append(token.text)
+    
+    for wd in token_list:
+        txt = nlp.vocab[wd]
+        if txt.is_punct == False:       #remove punctuation
+            if txt.is_stop == False:    #remove stopwords from Spacy list
+                words.append(wd.lower()) 
 
-        # Remove any punctuation characters present in the end of the word
-        while len(word) > 0 and word[-1] in punctuation:
-            word = word[:-1]
+    return words
 
-        # Simple rule to eliminate (most) URLs
-        if len(word) > 0 and "/" not in word:
-            # If it's not a stopword
-            if word.lower() not in stopwords:
-                # Append this word into our list of words.
-                text_words.append(word.lower())
+
+def create_term_dict(attribute):
+    """ Returns a tf dictionary for each review whose keys are all 
+    the unique words in the review and whose values are their 
+    corresponding tf.
+    """
+    #Counts the number of times the word appears in review
+    term_dict = dict()
+    for word in attribute:
+        if word in term_dict:
+            term_dict[word] += 1
+        else:
+            term_dict[word] = 1
+    #Computes tf for each word           
+    for word in term_dict:
+        term_dict[word] = term_dict[word] / len(attribute)
         
-    return text_words
+    return term_dict
 
-def inv_doc_freq(corpus_words):
-    number_docs = len(corpus_words)
-    
-    document_count = {}
 
-    for document in corpus_words:
-        word_set = set(document)
+def word_counts(term_dict):
+    #dictionary of unique words in with count of docs where word appears
+    word_dict = dict()
+    
+    # Run through each review's tf dictionary and increment countDict's (word, doc) pair
+    for attribute in term_dict:
+        print('attribute = ', attribute)
+        for word in attribute:
+            if word in word_dict:
+                word_dict[word] += 1
+            else:
+                word_dict[word] = 1
+                
+    return word_dict
 
-        for word in word_set:
-            document_count[word] = document_count.get(word, 0) + 1
-    
-    IDF = {}
-    
-    for word in document_count:
-        IDF[word] = np.log(number_docs/document_count[word])
+
+def grainger_corp(df, node):
+    """build a unique document corpus for each grainger node, whith each attribute considered a document"""
+    corpus = []
+    corp_dict = dict()
+    words = []
+    clean_words = []
+    grainger_term_dict = dict()
+    grainger_term_dict[node] = dict()
+
+    #create temp dataframe filters for each node
+    temp_df = cat_filter(df, 'Category_ID', node)  
+    temp_df = temp_df.dropna(axis=0, subset=['Grainger ALL Values'])
+    attributes = temp_df['Grainger_Attribute_Name'].unique()
+    #create a "combined" column that includes all values, attribute names, and attribute definitions to define the corpus
+    cols = ['Grainger ALL Values', 'Grainger_Attribute_Name', 'Grainger_Attribute_Definition', 'Grainger_Category_Specific_Definition']
+    temp_df['combined'] = temp_df[cols].apply(lambda row: ' '.join(row.values.astype(str)), axis=1)
+    #treat each attribute as a separate document and build a corpus
         
-    
-    return IDF
+    for att in attributes:
+        #create a second temp dataframe filtered at the attribute level
+        temp2_df = cat_filter(temp_df, 'Grainger_Attribute_Name', att)
+        temp2_df = temp2_df.drop_duplicates(subset=['Grainger_Attribute_Name'])
+        #create a document out of each attribute (combo of name, definitions, and values)
+        doc = temp2_df['combined'].str.cat(sep=' ')
+        #process doc into tokens, remove punctuation and stopwords, lemmatize, and remove 'nans'
+        words = get_words(doc)
+        clean_words = [x for x in words if str(x) != 'nan']
+        if len(clean_words) > 0:
+            corpus.append(clean_words)
+        corp_dict[att] = clean_words
+        grainger_term_dict[att] = create_term_dict(clean_words)
+        
+    return corpus, grainger_term_dict
 
-def tf_idf(corpus_words):
-    IDF = inv_doc_freq(corpus_words)
-    
-    TFIDF = []
-    
-    for document in corpus_words:
-        TFIDF.append(Counter(document))
-    
-    for document in TFIDF:
-        for word in document:
-            document[word] = document[word]*IDF[word]
+
+def gamut_corp(df, node):
+    """build a unique document corpus for each grainger node, whith each attribute considered a document"""
+    corpus = []
+    corp_dict = dict()
+    words = []
+    clean_words = []
+    gamut_term_dict = dict()
+    gamut_term_dict[node] = dict()
+
+    #create temp dataframe filters for each node
+    temp_df = cat_filter(df, 'Gamut_Node_ID', node)  
+    temp_df = temp_df.dropna(axis=0, subset=['Gamut ALL Values'])
+    attributes = temp_df['Gamut_Attribute_Name'].unique()
+    #create a "combined" column that includes all values, attribute names, and attribute definitions to define the corpus
+    cols = ['Gamut ALL Values', 'Gamut_Attribute_Name', 'Gamut_Attribute_Definition']
+    temp_df['combined'] = temp_df[cols].apply(lambda row: ' '.join(row.values.astype(str)), axis=1)
+    #treat each attribute as a separate document and build a corpus
+        
+    for att in attributes:
+        #create a second temp dataframe filtered at the attribute level
+        temp2_df = cat_filter(temp_df, 'Gamut_Attribute_Name', att)
+        temp2_df = temp2_df.drop_duplicates(subset=['Gamut_Attribute_Name'])
+        #create a document out of each attribute (combo of name, definitions, and values)
+        doc = temp2_df['combined'].str.cat(sep=' ')
+        #process doc into tokens, remove punctuation and stopwords, lemmatize, and remove 'nans'
+        words = get_words(doc)
+        clean_words = [x for x in words if str(x) != 'nan']
+        if len(clean_words) > 0:
+            corpus.append(clean_words)
+        corp_dict[att] = clean_words
+        gamut_term_dict[att] = create_term_dict(clean_words)
             
-    return TFIDF
+    return corpus, gamut_term_dict
 
 
-def build_vocabulary(TFIDF):
-    words = set()
+def attribute_name_match(df):
+    grainger_words = dict()
+    grainger_att_words = dict()
+    gamut_words = dict()
+    gamut_att_words = dict()
+    grainger_word_dict = dict()
     
-    for document in TFIDF:
-        words |= document.keys()
+    grainger_nodes = df['Category_ID'].unique()
+    gamut_nodes = df['Gamut_Node_ID'].unique()
     
-    word_list = list(words)
-    word_dict = dict(zip(word_list, range(len(word_list))))
-    
-    return word_dict, word_list
-
-
-def term_document_matrix(TFIDF, word_list, word_dict):
-    vocabulary_size = len(word_dict)
-    number_documents = len(TFIDF)
-    
-    TDM = np.zeros((vocabulary_size, number_documents))
-    
-    for doc in range(number_documents):
-        document = TFIDF[doc]
+    #build the grainger corpus dictionary (unique for each node)
+    for node in grainger_nodes:
+        #store cleaned corpus for each node in dictionary for future comparision
+        print(node)
+        grainger_words[node], grainger_att_words[node] = grainger_corp(df, node)
+        print(grainger_att_words[node])
+     #   freq_grainger = tf_idf(grainger_words[node])
+     #   grainger_word_dict, grainger_word_list = vocab(freq_grainger)
+     #   grainger_TDM = doc_matrix(freq_grainger, grainger_word_list, grainger_word_dict)
+        grainger_word_dict[node] = word_counts(grainger_att_words[node])
         
-        for word in document.keys():
-            pos = word_dict[word]
-            
-            TDM[pos, doc] = document[word]
-            
-    return TDM
+     #   print("Grainger dataset has:\n%u unique words\n%u documents"%(grainger_TDM.shape))
 
-
-def find_related_docs(tweet, TDM):
-    new_vector = np.zeros(TDM.shape[1])
-    
-    for word in tweet:
-        pos = word_dict[word]
-        new_vector += TDM[pos, :]
+    for node in gamut_nodes:
+        #store cleaned corpus for each node in dictionary for future comparision
+        print(node)
+        gamut_words[node], gamut_att_words[node] = gamut_corp(df, node)
+    #    freq_gamut = tf_idf(gamut_words[node])
+    #    gamut_word_dict, gamut_word_list = vocab(freq_gamut)
+    #    gamut_TDM = doc_matrix(freq_gamut, gamut_word_list, gamut_word_dict)
+        gamut_word_dict[node] = word_counts(gamut_att_words[node])
+    #    print("Gamut dataset has:\n%u unique words\n%u documents"%(gamut_TDM.shape))
         
-    # Now the entries of new_vector tell us which documents are activated by this one.
-    # Let's extract the list of documents sorted by activation
-    doc_list = sorted(zip(range(TDM.shape[1]), new_vector), key=lambda x:x[1], reverse=True)
-    
-    return doc_list
+    return grainger_words, gamut_att_words, grainger_word_dict, \
+            gamut_words, gamut_att_words, gamut_word_dict #gamut_TDM, gamut_word_dict
+# grainger_TDM, grainger_word_dict, 
 
 
 
-tweets = []
-line_count = 0
+attribute_df = pd.read_csv('F:/CGabriel/Grainger_Shorties/OUTPUT/test_27204.csv')
 
-for line in open("C:/Users/xcxg109/Documents/GitHub/FromScratch/NLP/data/Apple-Twitter-Sentiment-DFE.csv", "rt"):
-    fields = line.strip().split(',')
-    
-    line_count += 1
-    
-    # Skip the first line of the file which contains the header
-    if line_count == 1:
-        continue
-    
-    text = ",".join(fields[11:])
-    
-    if len(text) == 0:
-        continue
-    
-    words = extract_words(text, stopwords)
-    
-    if len(words) > 0:
-        tweets.append(words)
-        
-    if len(tweets) == 200:
-        break
+grainger_words = dict()
+gamut_words = dict()
+corpus = []
 
-TFIDF = tf_idf(tweets)
-
-word_dict, word_list = build_vocabulary(TFIDF)
-
-vocabulary_size = len(word_dict)
-print("We have", vocabulary_size, "words in our vocabulary")
-
-TDM = term_document_matrix(TFIDF, word_list, word_dict)
-print("Our dataset has:\n%u unique words\n%u documents"%(TDM.shape))
-
-new_tweet = ['macbook', 'mini', 'rocket']
-
-related = find_related_docs(new_tweet, TDM)
-
-for tweet, score in related[:5]:
-    print(tweet, " ".join(tweets[tweet]))
+grainger_words, grainger_att_words, grainger_word_dict, \
+gamut_words, gamut_att_words, gamut_word_dict = attribute_name_match(attribute_df)
