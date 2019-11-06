@@ -21,26 +21,26 @@ pd.options.mode.chained_assignment = None
 def match_category(df):
     """compare data colected from matching file (match_df) with grainger and gamut data pulls and create a column to tell analysts
     whether attributes from the two systems have been matched"""
-
+    
+    df['Matching'] = 'no'
+    
     for row in df.itertuples():
-        print ('grainger val = ', (row.Index, row.alt_grainger_name))
-        print ('gamut val = ', (row.Index, row.alt_gamut_name))
-        if (row.Index, row.alt_grainger_name) == (row.Index, row.alt_gamut_name):
+        grainger_string = str(row.Grainger_Attribute_Name)
+        gamut_string = str(row.Gamut_Attribute_Name)
+        
+        if (grainger_string) == (gamut_string):
             df.at[row.Index,'Matching'] = 'Match'
-            print('match')
-        elif (row.Index, row.alt_grainger_name) in (row.Index, row.alt_gamut_name) or \
-                    (row.Index, row.alt_gamut_name) in (row.Index, row.alt_grainger_name):
+        elif (grainger_string) in (gamut_string):
             df.at[row.Index,'Matching'] = 'Potential Match'
-            print('potential match')
+        elif (gamut_string) in (grainger_string):
+            df.at[row.Index,'Matching'] = 'Potential Match'
         elif process.isBlank(row.Grainger_Attribute_Name) == False:
             if process.isBlank(row.Gamut_Attribute_Name) == True:
                 df.at[row.Index,'Matching'] = 'Grainger only'
-                print('grainger only')
         elif process.isBlank(row.Grainger_Attribute_Name) == True:
             if process.isBlank(row.Gamut_Attribute_Name) == False:
                 df.at[row.Index,'Matching'] = 'Gamut only'
-                print('gamut only')
-             
+            
     return df
 
 
@@ -147,7 +147,7 @@ def grainger_process(grainger_df, grainger_sample, grainger_all, gamut_dict: Dic
     
     gamut_skus = q.gamut_skus(grainger_skus) #get gamut sku list to determine pim nodes to pull
     if gamut_skus.empty==False:
-        #create a dictionary of the unique gamut nodes that corresponde to the grainger node
+        #create a dictionary of the unique gamut nodes that corresponde to the grainger node 
         gamut_l3 = gamut_skus['Gamut_Node_ID'].unique()  #create list of pim nodes to pull
         print('GAMUT L3s ', gamut_l3)
         
@@ -167,10 +167,10 @@ def grainger_process(grainger_df, grainger_sample, grainger_all, gamut_dict: Dic
                 gamut_df = gamut_assign_nodes(grainger_df, gamut_df)
  
                 skus = gamut_skus[gamut_skus['Gamut_Node_ID'] == node]
-                temp_df = pd.merge(grainger_df, gamut_df, left_on=['Grainger_Attribute_Name', 'Category_ID', 'Gamut_Node_ID', 'Gamut_Category_ID', \
+                temp_df = pd.merge(grainger_df, gamut_df, left_on=['alt_grainger_name', 'Category_ID', 'Gamut_Node_ID', 'Gamut_Category_ID', \
                                                                    'Gamut_Category_Name', 'Gamut_Node_Name', 'Gamut_PIM_Path', 'Grainger Blue Path', \
                                                                    'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_Name'], 
-                                                right_on=['Gamut_Attribute_Name', 'Category_ID', 'Gamut_Node_ID', 'Gamut_Category_ID', \
+                                                right_on=['alt_gamut_name', 'Category_ID', 'Gamut_Node_ID', 'Gamut_Category_ID', \
                                                           'Gamut_Category_Name', 'Gamut_Node_Name', 'Gamut_PIM_Path', 'Grainger Blue Path', \
                                                           'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_Name'], how='outer')
                 temp_df = match_category(temp_df) #compare grainger and gamut atts and create column to say whether they match 
@@ -180,6 +180,7 @@ def grainger_process(grainger_df, grainger_sample, grainger_all, gamut_dict: Dic
                 temp_df['Gamut/Grainger SKU Counts'] = temp_df['gamut_sku_count'].map(str)+' / '+temp_df['grainger_sku_count'].map(str)
                 
                 df = pd.concat([df, temp_df], axis=0, sort=False) #add prepped df for this gamut node to the final df
+                df['Matching'] = df['Matching'].str.replace('no', 'Potential Match')
             else:
                 print('Gamut Node {} EMPTY DATAFRAME'.format(node))
 

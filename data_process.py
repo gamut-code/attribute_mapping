@@ -44,7 +44,18 @@ def process_att(attribute):
     pat = re.compile(r" \(..\.\)")
     attribute = attribute.str.replace(pat, "")
    # attribute = attribute.str.replace('  (merch)', "")
-    attribute= attribute.str.replace('dia.', 'diameter')
+    attribute = attribute.str.replace('also known as', 'item')
+    attribute = attribute.str.replace('standards', 'specifications met')
+
+    attribute = attribute.str.replace('overall ', "")
+
+    attribute= attribute.str.replace('dia\.', 'diameter')
+    attribute = attribute.str.replace(r'\bi\.d\.\b', 'inner diameter')
+    attribute = attribute.str.replace(r'\bid\b', 'inner diameter')
+    attribute = attribute.str.replace(r'\bo\.d\.\b', 'outer diameter')
+    attribute = attribute.str.replace(r'\bod\b', 'outer diameter')
+    
+
     return attribute
 
 
