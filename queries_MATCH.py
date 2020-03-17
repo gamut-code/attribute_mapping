@@ -161,9 +161,9 @@ grainger_attr_query="""
             , attr.DESCRIPTOR_ID as Grainger_Attr_ID
             , attr.DESCRIPTOR_NAME as Grainger_Attribute_Name
             , item_attr.ITEM_DESC_VALUE as Grainger_Attribute_Value
-            , cat_desc.ENDECA_RANKING
+            , cat_desc.ENDECA_RANKING As ENDECA_Ranking
             , item.PM_CODE AS PM_Code
-            , item.SALES_STATUS
+            , item.SALES_STATUS as Sales_Status
             , attr.attribute_level_definition as Grainger_Attribute_Definition
             , cat_desc.cat_specific_attr_definition as Grainger_Category_Specific_Definition
 
@@ -179,8 +179,6 @@ grainger_attr_query="""
             INNER JOIN PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
                 ON cat.CATEGORY_ID = item_attr.CATEGORY_ID
                 AND item_attr.DELETED_FLAG = 'N'
-                AND item.PM_CODE NOT IN ('R9')
-                AND item.PM_CODE NOT IN ('R4')
 
             INNER JOIN PRD_DWH_VIEW_MTRL.CAT_DESC_V AS cat_desc
                 ON cat_desc.CATEGORY_ID = item_attr.CATEGORY_ID
@@ -189,10 +187,8 @@ grainger_attr_query="""
 
             INNER JOIN PRD_DWH_VIEW_MTRL.MAT_DESCRIPTOR_V AS attr
                 ON attr.DESCRIPTOR_ID = item_attr.DESCRIPTOR_ID
-                AND attr.DELETED_FLAG = 'N'
 
-            WHERE item.SALES_STATUS NOT IN ('DG', 'DV', 'WV', 'WG')
-                AND {} IN ({})
+            WHERE {} IN ({})
             """
             
             
@@ -252,12 +248,8 @@ grainger_basic_query="""
             
             RIGHT JOIN PRD_DWH_VIEW_LMT.ITEM_V AS item
             	ON cat.CATEGORY_ID = item.CATEGORY_ID
-        		AND item.DELETED_FLAG = 'N'
-                AND item.PRODUCT_APPROVED_US_FLAG = 'Y'
-                AND item.PM_CODE NOT IN ('R9')
                                 
-            WHERE item.SALES_STATUS NOT IN ('DG', 'DV', 'WV', 'WG')
-            	AND {} IN ({})
+            WHERE {} IN ({})
             """
             
 #variation of the basic query designed to include discontinued items

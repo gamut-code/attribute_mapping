@@ -7,34 +7,11 @@ Created on Fri Aug 30 16:04:58 2019
 
 import string
 from collections import Counter
-from pprint import pprint
-import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from spacy.lang.en import English
-from spacy.lang.en.stop_words import STOP_WORDS
 
 import re
-import glob
-import os
-import math
-import string
-import query_code as q
-from fuzzywuzzy import fuzz
-from fuzzywuzzy import process
-from collections import defaultdict
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.preprocessing import FunctionTransformer
-from sklearn.pipeline import FeatureUnion, Pipeline
-#from sparse_dot_topn import awesome_cossim_topn
-
-from nltk.tokenize import TreebankWordTokenizer
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
-#from nltk.stemp.porter import PorterStemmer
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.model_selection import train_test_split
-
 
 
 def process_att(attribute):
@@ -42,23 +19,20 @@ def process_att(attribute):
     attribute = attribute.str.lower()
  #   pat= re.compile(r"\.\(\d/\d\)$")
     pat = re.compile(r" \(..\.\)")
-    re_merch = re.compile(r'(MERCH)', flags=re.IGNORECASE)
-    re_paren = re.compile(r'[\(\)]')
-
     attribute = attribute.str.replace(pat, "")
-#    attribute = attribute.str.replace('  (merch)', "")
+    attribute = attribute.str.replace('  (merch)', "")
+    attribute = attribute.str.replace('  (MERCH)', "")
     attribute = attribute.str.replace('also known as', 'item')
     attribute = attribute.str.replace('standards', 'specifications met')
+
     attribute = attribute.str.replace('overall ', "")
+
     attribute= attribute.str.replace('dia\.', 'diameter')
     attribute = attribute.str.replace(r'\bi\.d\.\b', 'inner diameter')
     attribute = attribute.str.replace(r'\bid\b', 'inner diameter')
     attribute = attribute.str.replace(r'\bo\.d\.\b', 'outer diameter')
     attribute = attribute.str.replace(r'\bod\b', 'outer diameter')
     
-    attribute = pd.Series(attribute).str.replace(re_merch, '')
-    attribute = pd.Series(attribute).str.replace(re_paren, '')
-    attribute = attribute.str.strip()
 
     return attribute
 
