@@ -1,4 +1,8 @@
  # -*- coding: utf-8 -*-
+
+import time
+
+
 """
 Spyder Editor
 
@@ -68,7 +72,7 @@ test_q="""
 
     INNER JOIN tax
         ON tax.id = tprod."categoryId"
-        --  AND (4458 = ANY(tax.ancestors)) --OR 8215 = ANY(tax.ancestors) OR 7739 = ANY(tax.ancestors))  -- *** ADD TOP LEVEL NODES HERE ***
+        AND (13496 = ANY(tax.ancestors)) --OR 8215 = ANY(tax.ancestors) OR 7739 = ANY(tax.ancestors))  -- *** ADD TOP LEVEL NODES HERE ***
 
     INNER JOIN taxonomy_attribute tax_att
         ON tax_att."categoryId" = tprod."categoryId"
@@ -78,11 +82,17 @@ test_q="""
 	AND tax_att.id = tprodvalue."attributeId"
         
     WHERE tprod.deleted = 'f'
-           AND {term} IN ({k})
-""".format(term='tprod."categoryId"', k=1951)
+          AND {term} IN ({k})
+""".format(term='tprod."categoryId"', k=1950)
 
+
+start_time = time.time()
+print('working...')
 
 gws_df = moist.query(test_q)
 
-outfile = Path(settings.directory_name)/"3_test.xlsx"
+
+outfile = Path(settings.directory_name)/"test.xlsx"
 gws_df.to_excel (outfile, index=None, header=True, encoding='utf-8')
+
+print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
