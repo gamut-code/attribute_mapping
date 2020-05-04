@@ -15,12 +15,34 @@ gcom = GraingerQuery()
 
 gamut = GWSQuery()
 
+
 def gamut_skus(grainger_skus):
     """get basic list of gamut SKUs to pull the related PIM nodes"""
+    gamut_sku_list = pd.DataFrame()
+    
     sku_list = grainger_skus['Grainger_SKU'].tolist()
-    gamut_skus = ", ".join("'" + str(i) + "'" for i in sku_list)
+    
+    if len(sku_list)>20000:
+        num_lists = round(len(sku_list)/20000, 0)
+        num_lists = int(num_lists)
+    
+        if num_lists == 1:
+            num_lists = 2
+        print('running SKUs in {} batches'.format(num_lists))
 
-    gamut_sku_list = gamut.gws_q(gamut_basic_query, 'tprod."supplierSku"', gamut_skus)
+        size = round(len(sku_list)/num_lists, 0)
+        size = int(size)
+
+        div_lists = [sku_list[i * size:(i + 1) * size] for i in range((len(sku_list) + size - 1) // size)]
+
+        for k  in range(0, len(div_lists)):
+            gamut_skus = ", ".join("'" + str(i) + "'" for i in div_lists[k])
+            temp_df = gamut.gws_q(gamut_basic_query, 'tprod."supplierSku"', gamut_skus)
+            gamut_sku_list = pd.concat([gamut_sku_list, temp_df], axis=0, sort=False) 
+    else:
+        gamut_skus = ", ".join("'" + str(i) + "'" for i in sku_list)
+        gamut_sku_list = gamut.gws_q(gamut_basic_query, 'tprod."supplierSku"', gamut_skus)
+
     return gamut_sku_list
 
 

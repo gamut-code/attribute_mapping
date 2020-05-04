@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+ # -*- coding: utf-8 -*-
 """
 Created on Fri Aug 16 16:39:52 2019
 
@@ -280,12 +280,12 @@ if data_type == 'grainger_query':
             search_data = [int(row[0]) for row in file_data[file][1:]]
             attribute_df = attribute_process_singular(data_type, search_data)
             attribute_df = attribute_df.drop(['Count'], axis=1)
-            fd.attribute_match_data_out(settings.directory_name, attribute_df, search_level)
+            fd.numbers_out(settings.directory_name, attribute_df, search_level)
 
     elif data_process == "two":
         search_data = fd.data_in(data_type, settings.directory_name)
         attribute_df = attribute_process_singular(data_type, search_data)
         if attribute_df.empty==False:
-            fd.attribute_match_data_out(settings.directory_name, attribute_df, search_level)
+            fd.numbers_out(settings.directory_name, attribute_df, search_level)
         else:
             print('EMPTY DATAFRAME')

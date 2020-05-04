@@ -123,7 +123,9 @@ def outfile_name (directory_name, quer, df, search_level, gamut='no'):
                 if gamut == 'yes':
                     outfile = Path(directory_name)/"{} {}.xlsx".format(df.iloc[0,7], quer)
                 else:
-                    outfile = Path(directory_name)/"{} {}.xlsx".format(df.iloc[0,6], quer)                    
+                    outfile = Path(directory_name)/"{} {}.xlsx".format(df.iloc[0,6], quer) 
+            elif quer == 'ATTRIBUTES':
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,4], df.iloc[0,5], quer)
             elif quer == 'ATTR':
                 outfile = Path(directory_name)/"{} {}.xlsx".format(df.iloc[0,3], quer)
             else:
@@ -146,9 +148,8 @@ def attribute_match_data_out(directory_name, df, search_level):
                      'Gamut_Attr_ID', 'Gamut_Attribute_Name', 'Matching', 'ENDECA_RANKING', 'Grainger_Fill_Rate_%', 'Grainger_Attribute_Definition', \
                      'Grainger_Category_Specific_Definition', 'Gamut_Attribute_Definition',\
                      'Grainger Attribute Sample Values', 'Gamut Attribute Sample Values']
-#                     'alt_grainger_name', 'alt_gamut_name'
     
-#    df = df.reindex(columns=columnsTitles)
+    df = df.reindex(columns=columnsTitles)
     outfile = outfile_name (directory_name, quer, df, search_level)
 
     writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
@@ -185,41 +186,64 @@ def attribute_match_data_out(directory_name, df, search_level):
             width = 10
         worksheet.set_column(i, i, width) 
     writer.save()
-                              
-    #setup display for Stats sheet
-    #set header different
-#    worksheet1.set_row(0, None, header_fmt)
-    
-#    worksheet1.set_column('A:A', 12, layout)
-#    worksheet1.set_column('B:B', 30, layout)
-#    worksheet1.set_column('C:C', 12, layout)
-#    worksheet1.set_column('D:D', 30, layout)
-#    worksheet1.set_column('E:E', 12, layout)
-#    worksheet1.set_column('F:F', 30, layout)
-#    worksheet1.set_column('G:G', 12, layout)
-#    worksheet1.set_column('H:H', 30, layout)
-#    worksheet1.set_column('I:I', 30, layout)
-#    worksheet1.set_column('J:J', 12, layout)
-#    worksheet1.set_column('K:K', 30, layout)
-#    worksheet1.set_column('L:L', 12, layout)
-#    worksheet1.set_column('M:M', 30, layout)
-#    worksheet1.set_column('N:N', 40, layout)
-#    worksheet1.set_column('O:O', 12, layout)
-#    worksheet1.set_column('P:P', 30, layout)
-#    worksheet1.set_column('Q:Q', 12, layout)
-#    worksheet1.set_column('R:R', 30, layout)
-#    worksheet1.set_column('S:S', 20, layout)
-#    worksheet1.set_column('T:T', 20, layout)
-#    worksheet1.set_column('U:U', 25, layout)
-#    worksheet1.set_column('V:V', 40, layout)
-#    worksheet1.set_column('W:W', 40, layout)
-#    worksheet1.set_column('X:X', 40, layout)        
-#    worksheet1.set_column('Y:Y', 45, layout)
-#    worksheet1.set_column('Z:Z', 45, layout)
-    
-#    writer.save()
- 
+                               
         
+def numbers_out(directory_name, df, search_level):
+    # Create a Pandas Excel writer using XlsxWriter as the engine.
+    df['Category_Name'] = modify_name(df['Category_Name'], '/', '_') #clean up node names to include them in file names       
+
+    quer = 'GRAINGER-GAMUT'
+    
+    #output raw files before organizing/editing columns for human file
+
+    columnsTitles = ['Gamut/Grainger SKU Counts', 'Grainger Blue Path', 'Segment_ID', 'Segment_Name', \
+                     'Family_ID', 'Family_Name', 'Category_ID', 'Category_Name', 'Gamut_PIM_Path', \
+                     'Gamut_Category_ID', 'Gamut_Category_Name', 'Gamut_Node_ID', 'Gamut_Node_Name', \
+                     'Grainger-Gamut Terminal Node Mapping', 'Grainger_Attr_ID', 'Grainger_Attribute_Name',\
+                     'Gamut_Attr_ID', 'Gamut_Attribute_Name', 'Matching', 'ENDECA_RANKING', 'Grainger_Fill_Rate_%', 'Grainger_Attribute_Definition', \
+                     'Grainger_Category_Specific_Definition', 'Gamut_Attribute_Definition',\
+                     'Grainger Attribute Sample Values']
+#                     'alt_grainger_name', 'alt_gamut_name'
+    
+    df = df.reindex(columns=columnsTitles)
+    outfile = outfile_name (directory_name, quer, df, search_level)
+
+    writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
+    
+    pd.io.formats.excel.header_style = None
+    
+    # Write each dataframe to a different worksheet.
+    df = df.sort_values(['Segment_Name', 'Category_Name', 'Gamut_Node_Name', 'Grainger_Attribute_Name', \
+                         'Gamut_Attribute_Name'], ascending=[True, True, True, True, True])
+    df.to_excel(writer, sheet_name='Data', index=False)
+    
+    # Get the xlsxwriter workbook and worksheet objects.
+    workbook  = writer.book
+    worksheet = writer.sheets['Data']
+    
+    layout = workbook.add_format()
+    layout.set_text_wrap('text_wrap')
+    layout.set_align('left')
+    
+    header_fmt = workbook.add_format()
+    header_fmt.set_text_wrap('text_wrap')
+    header_fmt.set_bold()
+
+    num_layout = workbook.add_format()
+    num_layout.set_num_format('##0.00')
+    
+    col_widths = get_col_widths(df)
+    col_widths = col_widths[1:]
+
+    for i, width in enumerate(col_widths):
+        if width > 40:
+            width = 40
+        elif width < 10:
+            width = 10
+        worksheet.set_column(i, i, width) 
+    writer.save()
+
+
 #general output to xlsx file, used for the basic query
 def data_out(directory_name, df, quer, search_level):
     """basic output for any Gamut query""" 
@@ -277,4 +301,53 @@ def hier_data_out(directory_name, grainger_df, gamut_df, quer, search_level):
         worksheet.set_column(i, i, width) 
     writer.save()
   
+    writer.save()
+
+
+#output for attribute values for Grainger
+def attr_data_out(directory_name, df, df_stats, df_fill, search_level):
+    # Create a Pandas Excel writer using XlsxWriter as the engine.
+    df['Category_Name'] = modify_name(df['Category_Name'], '/', '_') #clean up node names to include them in file names   
+#    df.drop(columns=['Count', 'Fill_Rate %'], inplace=True)
+    
+    quer = 'ATTRIBUTES'
+    outfile = outfile_name (directory_name, quer, df, search_level)
+
+  #  outfile = Path(directory_name)/"{} {} ATTRIBUTES.xlsx".format(k, df.iloc[0,2])   #set directory path and name output file
+    
+    writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
+    
+    # Write each dataframe to a different worksheet.
+    df_fill.to_excel(writer, sheet_name='Stats', startrow =1, startcol=0, index=False)
+    df_stats.to_excel(writer, sheet_name='Stats', startrow=1, startcol=5)
+    df.to_excel(writer, sheet_name='Data', index=False)
+    
+    # Get the xlsxwriter workbook and worksheet objects.
+    workbook  = writer.book
+    worksheet1 = writer.sheets['Stats']
+    worksheet2 = writer.sheets['Data']
+  
+    layout = workbook.add_format()
+    layout.set_text_wrap('text_wrap')
+    layout.set_align('left')
+    
+    header_fmt = workbook.add_format()
+    header_fmt.set_text_wrap('text_wrap')
+    header_fmt.set_bold()
+
+    num_layout = workbook.add_format()
+    num_layout.set_num_format('##0.00')
+                                      
+    #setup display for Stats sheet
+    worksheet1.set_column('A:A', 30, layout)
+    worksheet1.set_column('B:B', 15, num_layout)
+    worksheet1.set_column('C:C', 15, layout)
+    worksheet1.set_column('F:F', 30, layout)
+    worksheet1.set_column('G:G', 60, layout)
+    
+    #steup display for Data sheet
+    worksheet2.set_column('F:F', 25, layout)
+    worksheet2.set_column('G:G', 30, layout)
+    worksheet2.set_column('H:H', 60, layout)
+    
     writer.save()
