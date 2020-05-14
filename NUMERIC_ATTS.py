@@ -78,12 +78,11 @@ def grainger_values(df):
 
     all_vals = all_vals.merge(fill_rate, how='inner', on=['Grainger_Attr_ID'])  
     
-    fill_rate.to_csv('F:/CGabriel/Grainger_Shorties/OUTPUT/fill.csv')
-    all_vals.to_csv('F:/CGabriel/Grainger_Shorties/OUTPUT/all_vals.csv')
     return all_vals
     
 
-def analyze(df):
+def split(df):
+    """ split values into numerators + UOMs and create separate columns for each"""
     all_vals = pd.DataFrame()
 
     atts = df['Grainger_Attribute_Name'].unique()
@@ -91,54 +90,72 @@ def analyze(df):
     for attribute in atts:
         #put all attribute values into a single string for TF-IDF processing later
         temp_df = df.loc[df['Grainger_Attribute_Name']== attribute]
-        temp_df['Num'] = ""
-        temp_df['Str'] = ""
-        temp_df['Num_Candidate'] = 'N'
+        temp_df['Numeric'] = ""
+        temp_df['String'] = ""
             
         for row in temp_df.itertuples():
             value = row.Grainger_Attribute_Value
             
-#                match = re.match(r"([0-9]+)([a-z]+)", value, re.I)
-#                r = re.compile(r"^\d*[.,]?\d*$")
-#                match = re.match(r"^\d*[.,]?\d*$", value, re.I)
-#                r = re.compile("^(?=.*?\d)\d*[.,]?\d*$")
-#                match = re.match("^(?=.*?\d)\d*[.,]?\d*$", value, re.I)
-#            r = re.match("^\d*\.?\d*", value, re.I)
-
-#            r = re.compile('^\d*\.?\d*')
             r = re.compile('^\d*[\.\/]?\d*')
 
-            temp_df.at[row.Index, 'Num'], temp_df.at[row.Index, 'Str'] = re.split(r, value)
+            temp_df.at[row.Index, 'Numeric'], temp_df.at[row.Index, 'String'] = re.split(r, value)
             num = r.search(value)           
-            temp_df.at[row.Index, 'Num'] = num.group()
-            
-#            if temp_df['Num'] != "":
-#                temp_df['Str'] = row.Grainger_Attribute_Value.extract('^\d*\.?\d*')
-   #         if match:
-   #             items = match.groups()
-   #             temp_df.at[row.Index,'Values'] = items
+            temp_df.at[row.Index, 'Numeric'] = num.group()
 
-#        temp_df['Grainger ALL Values'] = ' '.join(item for item in temp_df['Grainger_Attribute_Value'] if item)
-#        temp_df['Num'].replace(r'^\s*$', np.nan, regex=True)
-        
-#        null_col=temp_df.columns[temp_df.isnull().any()]
-        
-#        If temp_df[temp_df['Num'].isnull()][nuLL_col]:
-#        If temp_df['Num'].notna():
-            # signal that this attribute is a numeric candidate
-#            temp_df['Num_Candidate'] = 'Y'
-        nan_values = temp_df.isna()
-        nan_columns = nan_values.any()
-
-        print('NaN = ', nan_columns)
         all_vals = pd.concat([all_vals, temp_df], axis=0)
 
-#    all_vals = all_vals.drop_duplicates(subset='Grainger_Attr_ID')
-#    all_vals = all_vals[['Grainger_Attr_ID', 'Grainger ALL Values']]
-
-#    all_vals.to_csv("F:/CGabriel/Grainger_Shorties/OUTPUT/vals.csv")
-
     return all_vals
+
+
+def analyze(df, sum):
+    """use the split fields in grainger_df to analyze suitability for number conversion and included in summary df"""
+
+    atts = df['Grainger_Attribute_Name'].unique()
+
+    sum['%_Numeric'] = ''
+    sum['Candidate'] = ''
+
+#    vals = pd.DataFrame(df.groupby(['Grainger_Attribute_Name', 'Grainger_Attribute_Value'])['Count'].sum())
+#    vals = vals.reset_index()
+    
+    for attribute in atts:
+        temp_att = df.loc[df['Grainger_Attribute_Name']== attribute]
+
+        row_count = len(temp_att.index)
+        print ('attribute {}: row count = {}'.format(attribute, row_count))
+        # Get a bool series representing positive 'Num' rows
+        seriesObj = temp_att.apply(lambda x: True if x['Numeric'] != "" else False , axis=1) 
+        # Count number of True in series
+        num_count = len(seriesObj[seriesObj == True].index)
+        percent = num_count/row_count*100
+
+        # build a list of items that are exluded as potential UOM values
+        exclusions = ['NEF', 'NPT', 'NPS', 'UNEF', 'Steel']
+        
+        temp_att['exclude'] = temp_att['String'].apply(lambda x: ','.join([i for i in exclusions if i in x]))
+        excludeObj = temp_att.apply(lambda x: True if x['exclude'] != "" else False , axis=1)
+        exclude_count = len(excludeObj[excludeObj == True].index)
+        exclude_percent = exclude_count/row_count*100
+
+        print('exclude count = ', exclude_count)
+        print('row count     = ', row_count)
+        print('exclude percent ', exclude_percent)
+        sum.loc[sum['Grainger_Attribute_Name'] == attribute, '%_Numeric'] = float(percent)
+        
+   !!     if 'Thread Size' in attribute or 'Thread Depth' in attribute:
+            sum.loc[sum['Grainger_Attribute_Name'] == attribute, 'Candidate'] = 'N'
+        elif exclude_percent > 80:
+            sum.loc[sum['Grainger_Attribute_Name'] == attribute, 'Candidate'] = 'N'        
+        elif percent < 80:
+            sum.loc[sum['Grainger_Attribute_Name'] == attribute, 'Candidate'] = 'N'
+        elif percent >= 80 and percent < 100:           
+            sum.loc[sum['Grainger_Attribute_Name'] == attribute, 'Candidate'] = 'potential'
+        elif percent == 100:
+            sum.loc[sum['Grainger_Attribute_Name'] == attribute, 'Candidate'] = 'Y'
+        
+    sum['%_Numeric'] = sum['%_Numeric'].map('{:,.2f}'.format)
+
+    return sum
 
 #determine SKU or node search
 search_level = 'cat.CATEGORY_ID'
@@ -147,6 +164,7 @@ data_type = fd.search_type()
 
 if data_type == 'grainger_query':
     search_level, data_process = fd.blue_search_level()
+    
 elif data_type == 'value' or data_type == 'name':
     while True:
         try:
@@ -171,7 +189,8 @@ if data_type == 'grainger_query':
         if grainger_df.empty == False:
             df_stats = get_stats(grainger_df)
             df_summary = grainger_values(grainger_df)
-            grainger_df = analyze(grainger_df)
+            grainger_df = split(grainger_df)
+            df_summary = analyze(grainger_df, df_summary)
             fd.attr_data_out(settings.directory_name, grainger_df, df_stats, df_summary, search_level)
         else:
             print('All SKUs are R4, R9, or discontinued')
