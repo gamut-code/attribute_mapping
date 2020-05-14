@@ -1,291 +1,226 @@
- # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
-Created on Fri Aug 16 16:39:52 2019
+Created on Tue Mar  5 12:40:34 2019
 
 @author: xcxg109
 """
-
 import pandas as pd
 import numpy as np
-import query_code as q
-import settings
-import data_process as process
+import re
+from grainger_query import GraingerQuery
+from queries_MATCH import grainger_attr_query, grainger_value_query
 import file_data_att as fd
-from typing import Dict
-from queries_MATCH import grainger_attr_query, gamut_attr_values, gamut_attr_query
+import settings
 import time
 
+gcom = GraingerQuery()
 
-pd.options.mode.chained_assignment = None
+
+def get_stats(df):
+    """return unique values for each attribute with a count of how many times each is used in the node"""
+    df['Count'] =1
+    stats = pd.DataFrame(df.groupby(['Grainger_Attribute_Name', 'Grainger_Attribute_Value'])['Count'].sum())
+    return stats
 
 
-def match_category(df):
-    """compare data colected from matching file (match_df) with grainger and gamut data pulls and create a column to tell analysts
-    whether attributes from the two systems have been matched"""
+def grainger_values(df):
+    """aggregate all valeus for each attribute and calculate fill rates for browseable SKUs"""
+
+    all_vals = pd.DataFrame()
+    browsable_skus = pd.DataFrame()
+
+    df['Count'] =1
+    atts = df['Grainger_Attribute_Name'].unique()
+
+    vals = pd.DataFrame(df.groupby(['Grainger_Attribute_Name', 'Grainger_Attribute_Value'])['Count'].sum())
+    vals = vals.reset_index()
     
-    df['Matching'] = 'no'
+    for attribute in atts:
+        temp_att = vals.loc[vals['Grainger_Attribute_Name']== attribute]
+               
+        #put all attribute values into a single string for TF-IDF processing later
+        temp_df = df.loc[df['Grainger_Attribute_Name']== attribute]
+        temp_df = temp_df.drop_duplicates(subset='Grainger_Attribute_Value')
+        temp_df['Grainger ALL Values'] = '; '.join(item for item in temp_df['Grainger_Attribute_Value'] if item)
+        all_vals= pd.concat([all_vals, temp_df], axis=0)
+
+    all_vals = all_vals.drop_duplicates(subset='Grainger_Attr_ID')
+    all_vals = all_vals[['Grainger_Attr_ID', 'Grainger ALL Values']]
+
+    browsable_skus = df
+    pmCode = ['R4', 'R9']
+    salesCode = ['DG', 'DV', 'WG', 'WV']
+    browsable_skus = browsable_skus[~browsable_skus.PM_Code.isin(pmCode)]
+    browsable_skus = browsable_skus[~browsable_skus.Sales_Status.isin(salesCode)]
+
+    total = browsable_skus['Grainger_SKU'].nunique()
     
-    for row in df.itertuples():
-        grainger_string = str(row.Grainger_Attribute_Name)
-        gamut_string = str(row.Gamut_Attribute_Name)
+    if total > 0:
+        browsable_skus = browsable_skus.drop_duplicates(subset=['Grainger_SKU', 'Grainger_Attribute_Name'])  #create list of unique grainger skus that feed into gamut query
+
+        browsable_skus['Fill_Rate_%'] = (browsable_skus.groupby('Grainger_Attribute_Name')['Grainger_Attribute_Name'].transform('count')/total)*100
+        browsable_skus['Fill_Rate_%'] = browsable_skus['Fill_Rate_%'].map('{:,.2f}'.format)
+    
+        fill_rate = pd.DataFrame(browsable_skus.groupby(['Grainger_Attribute_Name'])['Fill_Rate_%'].count()/total*100).reset_index()
+        fill_rate = fill_rate.sort_values(by=['Fill_Rate_%'], ascending=False)
         
-        if (grainger_string) == (gamut_string):
-            df.at[row.Index,'Matching'] = 'Match'
-        elif (grainger_string) in (gamut_string):
-            df.at[row.Index,'Matching'] = 'Potential Match'
-        elif (gamut_string) in (grainger_string):
-            df.at[row.Index,'Matching'] = 'Potential Match'
-        elif process.isBlank(row.Grainger_Attribute_Name) == False:
-            if process.isBlank(row.Gamut_Attribute_Name) == True:
-                df.at[row.Index,'Matching'] = 'Grainger only'
-        elif process.isBlank(row.Grainger_Attribute_Name) == True:
-            if process.isBlank(row.Gamut_Attribute_Name) == False:
-                df.at[row.Index,'Matching'] = 'Gamut only'
-            
-    return df
-
-
-def gamut_process(node, gamut_dict: Dict, k):
-    """if gamut node has not been previously processed (in gamut_dict), process and add it to the dictionary"""
-    gamut_sample_vals = pd.DataFrame()
-    gamut_att_vals = pd.DataFrame()
-
-    gamut_df = q.gamut_atts(gamut_attr_query, node, 'tax.id')  #tprod."categoryId"')  #get gamut attribute values for each gamut_l3 node\
-
-    if gamut_df.empty==False:
-        gamut_att_vals, gamut_sample_vals = q.gamut_values(gamut_attr_values, node, 'tax.id') #gamut_values exports a list of --all-- normalized values and sample_values
-         
-        if gamut_att_vals.empty==False:
-            gamut_sample_vals = gamut_sample_vals.rename(columns={'Normalized Value': 'Gamut Attribute Sample Values'})
-            gamut_df = pd.merge(gamut_df, gamut_sample_vals, on=['Gamut_Attribute_Name'])  #add t0p 5 normalized values to report
-            gamut_df = pd.merge(gamut_df, gamut_att_vals, on=['Gamut_Attr_ID'])  #add t0p 5 normalized values to report
-
-        gamut_df = gamut_df.drop_duplicates(subset='Gamut_Attr_ID')  #gamut attribute IDs are unique, so no need to group by pim node before getting unique
-        gamut_df['alt_gamut_name'] = process.process_att(gamut_df['Gamut_Attribute_Name'])  #prep att name for merge
+        browsable_skus = browsable_skus[['Grainger_Attribute_Name']].drop_duplicates(subset='Grainger_Attribute_Name')
+        fill_rate = fill_rate.merge(browsable_skus, how= "inner", on=['Grainger_Attribute_Name'])
+        fill_rate['Fill_Rate_%'] = fill_rate['Fill_Rate_%'].map('{:,.2f}'.format)  
+        df = df[['Category_ID', 'Category_Name', 'Grainger_Attribute_Name', 'Grainger_Attr_ID', 'ENDECA_Ranking']]
+        df = df.drop_duplicates(subset='Grainger_Attr_ID')
+        fill_rate = fill_rate.merge(df, how= "inner", on=['Grainger_Attribute_Name'])
         
-        gamut_dict[node] = gamut_df #store the processed df in dict for future reference 
     else:
-        print('{} EMPTY DATAFRAME'.format(node))    
-        
-    return gamut_dict, gamut_df
+        df['Grainger_Fill_Rate_%'] = 'no browsable SKUs'
+        fill_rate = df[['Grainger_Attribute_Name']].drop_duplicates(subset='Grainger_Attribute_Name')
+        fill_rate['Grainger_Fill_Rate_%'] = 'no browsable SKUs'
 
-
-def grainger_assign_nodes (grainger_df, gamut_df, node):
-    """assign gamut node data to grainger columns"""
+    all_vals = all_vals.merge(fill_rate, how='inner', on=['Grainger_Attr_ID'])  
     
-    att_list = []
-    
-    node_ID = gamut_df['Gamut_Node_ID'].unique()
-    cat_ID = gamut_df['Gamut_Category_ID'].unique()
-    cat_name = gamut_df['Gamut_Category_Name'].unique()
-    node_name = gamut_df['Gamut_Node_Name'].unique()
-    pim_path = gamut_df['Gamut_PIM_Path'].unique()
-
-    atts = grainger_df['Grainger_Attribute_Name'].unique()
-    att_list = [att for att in atts if att]
-    att_list = np.char.strip(att_list)
-
-    for att in att_list:
-        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_Node_ID'] = node_ID
-        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_Category_ID'] = cat_ID
-        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_Category_Name'] = cat_name
-        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_Node_Name'] = node_name
-        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_PIM_Path'] = pim_path
-    
-    return grainger_df
-
-
-def gamut_assign_nodes (grainger_df, gamut_df):
-    """assign grainger node data to gamut columns"""
-    
-    att_list = []
-    
-    blue = grainger_df['Grainger Blue Path'].unique()
-    seg_ID = grainger_df['Segment_ID'].unique()
-    seg_name = grainger_df['Segment_Name'].unique()
-    fam_ID = grainger_df['Family_ID'].unique()
-    fam_name = grainger_df['Family_Name'].unique()
-    cat_ID = grainger_df['Category_ID'].unique()
-    cat_name = grainger_df['Category_Name'].unique()
-    
-    atts = gamut_df['Gamut_Attribute_Name'].unique()
-    att_list = [att for att in atts if att]
-    att_list = np.char.strip(att_list)
-    
-    for att in att_list:
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Category_ID'] = cat_ID
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Grainger Blue Path'] = blue
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Segment_ID'] = seg_ID
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Segment_Name'] = seg_name
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Family_ID'] = fam_ID
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Family_Name'] = fam_name
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Category_Name'] = cat_name
-
-    return gamut_df
-
-
-def grainger_process(grainger_df, grainger_sample, grainger_all, fill_rate, gamut_dict: Dict, k):
-    """create a list of grainger skus, run through through the gamut_skus query and pull gamut attribute data if skus are present
-        concat both dataframs and join them on matching attribute names"""
-    
-    df = pd.DataFrame()
-        
-    cat_name = grainger_df['Category_Name'].unique()
-    cat_name = list(cat_name)
-    cat_name = cat_name.pop()
-    print('cat name = {} {}'.format(k, cat_name))
-
-    grainger_skus = grainger_df.drop_duplicates(subset='Grainger_SKU')  #create list of unique grainger skus that feed into gamut query
-    grainger_sku_count = len(grainger_skus)
-    print('grainger sku count = ', grainger_sku_count)
-    grainger_df = grainger_df.drop_duplicates(subset=['Category_ID', 'Grainger_Attr_ID'])  #group by Category_ID and attribute name and keep unique
-    grainger_df['Grainger Blue Path'] = grainger_df['Segment_Name'] + ' > ' + grainger_df['Family_Name'] + \
-                                                        ' > ' + grainger_df['Category_Name']
-
-    grainger_df = grainger_df.drop(['Grainger_SKU', 'Grainger_Attribute_Value'], axis=1) #remove unneeded columns
-    
-    grainger_df = pd.merge(grainger_df, grainger_sample, on=['Grainger_Attribute_Name'])
-    grainger_df = pd.merge(grainger_df, grainger_all, on=['Grainger_Attr_ID'])
-    grainger_df = pd.merge(grainger_df, fill_rate, on=['Grainger_Attribute_Name'])
-    
-    grainger_df['alt_grainger_name'] = process.process_att(grainger_df['Grainger_Attribute_Name'])  #prep att name for merge
-
-    gamut_skus = q.gamut_skus(grainger_skus) #get gamut sku list to determine pim nodes to pull
-    
-    if gamut_skus.empty==False:
-        #create a dictionary of the unique gamut nodes that corresponde to the grainger node 
-        gamut_l3 = gamut_skus['Gamut_Node_ID'].unique()  #create list of pim nodes to pull
-        print('GWS L3s ', gamut_l3)
-        
-        for node in gamut_l3:
-            if node in gamut_dict:
-                gamut_df = gamut_dict[node]
-            else:
-                gamut_dict, gamut_df = gamut_process(node, gamut_dict, k)
-
-            if gamut_df.empty==False:
-                node_name = gamut_df['Gamut_Node_Name'].unique()
-                node_name = list(node_name)
-                node_name = node_name.pop()
-                print('node name = {} {}'.format(node, node_name))
-                #add correlating grainger and gamut data to opposite dataframes
-                grainger_df = grainger_assign_nodes(grainger_df, gamut_df, node)
-                gamut_df = gamut_assign_nodes(grainger_df, gamut_df)
- 
-                skus = gamut_skus[gamut_skus['Gamut_Node_ID'] == node]
-                temp_df = pd.merge(grainger_df, gamut_df, left_on=['alt_grainger_name', 'Category_ID', 'Gamut_Node_ID', 'Gamut_Category_ID', \
-                                                                   'Gamut_Category_Name', 'Gamut_Node_Name', 'Gamut_PIM_Path', 'Grainger Blue Path', \
-                                                                   'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_Name'], 
-                                                right_on=['alt_gamut_name', 'Category_ID', 'Gamut_Node_ID', 'Gamut_Category_ID', \
-                                                          'Gamut_Category_Name', 'Gamut_Node_Name', 'Gamut_PIM_Path', 'Grainger Blue Path', \
-                                                          'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_Name'], how='outer')
-
-                temp_df = match_category(temp_df) #compare grainger and gamut atts and create column to say whether they match 
-                temp_df['grainger_sku_count'] = grainger_sku_count
-                temp_df['gamut_sku_count'] = len(skus)
-                temp_df['Grainger-Gamut Terminal Node Mapping'] = cat_name+' -- '+node_name
-                temp_df['Gamut/Grainger SKU Counts'] = temp_df['gamut_sku_count'].map(str)+' / '+temp_df['grainger_sku_count'].map(str)
-
-                df = pd.concat([df, temp_df], axis=0, sort=False) #add prepped df for this gamut node to the final df
-                df['Matching'] = df['Matching'].str.replace('no', 'Potential Match')
-
-            else:
-                print('GWS Node {} EMPTY DATAFRAME'.format(node))
-    else:
-        grainger_df['Gamut/Grainger SKU Counts'] = '0 / '+str(grainger_sku_count)
-        grainger_df['Grainger-Gamut Terminal Node Mapping'] = cat_name+' -- '
-        df = grainger_df
-        print('No Gamut SKUs for Grainger node {}'.format(k))
-        
-    return df, gamut_dict #where gamut_att_temp is the list of all normalized values for gamut attributes
+    fill_rate.to_csv('F:/CGabriel/Grainger_Shorties/OUTPUT/fill.csv')
+    all_vals.to_csv('F:/CGabriel/Grainger_Shorties/OUTPUT/all_vals.csv')
+    return all_vals
     
 
-def attribute_process_singular(data_type, search_data):
-    gamut_df = pd.DataFrame()
-    grainger_df = pd.DataFrame()
-    grainger_skus = pd.DataFrame()
+def analyze(df):
+    all_vals = pd.DataFrame()
 
-    attribute_df = pd.DataFrame()
-    grainger_att_vals = pd.DataFrame()
-    grainger_sample_vals = pd.DataFrame()
-    grainger_fill_rates = pd.DataFrame()
-    gamut_att_vals = pd.DataFrame()
-    gamut_dict = dict()
+    atts = df['Grainger_Attribute_Name'].unique()
 
-    start_time = time.time()
-    print('working...')
-
-    if data_type == 'grainger_query':
-        if search_level == 'cat.CATEGORY_ID':
-            for k in search_data:
-                grainger_df = q.gcom.grainger_q(grainger_attr_query, search_level, k)
-
-                if grainger_df.empty == False:
-                    grainger_att_vals, grainger_sample_vals, grainger_fill_rates = q.grainger_values(grainger_df)
-                    grainger_sample_vals = grainger_sample_vals.rename(columns={'Grainger_Attribute_Value': 'Grainger Attribute Sample Values'})
-                    grainger_att_vals = grainger_att_vals.rename(columns={'Grainger_Attribute_Value': 'Grainger ALL Values'})
-
-                    temp_df, gamut_dict = grainger_process(grainger_df, grainger_sample_vals, grainger_att_vals, grainger_fill_rates, gamut_dict, k)
-                    attribute_df = pd.concat([attribute_df, temp_df], axis=0, sort=False)
-                    print ('Grainger node = ', k)
-                else:
-                    print('No attribute data')
-        else:
-            for k in search_data:
-                print('K = ', k)
-                grainger_skus = q.grainger_nodes(k, search_level)
-                grainger_l3 = grainger_skus['Category_ID'].unique()  #create list of pim nodes to pull
-                print('grainger L3s = ', grainger_l3)
-                for j in grainger_l3:
-                    grainger_df = q.gcom.grainger_q(grainger_attr_query, 'cat.CATEGORY_ID', j)
-                    if grainger_df.empty == False:
-                        grainger_att_vals, grainger_sample_vals, grainger_fill_rates = q.grainger_values(grainger_df)
-                        grainger_sample_vals = grainger_sample_vals.rename(columns={'Grainger_Attribute_Value': 'Grainger Attribute Sample Values'})
-                        temp_df, gamut_dict = grainger_process(grainger_df, grainger_sample_vals, grainger_att_vals, grainger_fill_rates, gamut_dict, j)
-                        attribute_df = pd.concat([attribute_df, temp_df], axis=0, sort=False)
-                        print ('Grainger ', j)
-                    else:
-                        print('Grainger node {} All SKUs are R4, R9, or discontinued'.format(j)) 
-                print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
-        print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
-        
-    elif data_type == 'sku':
-        sku_str = ", ".join("'" + str(i) + "'" for i in search_data)
-        grainger_df = q.gcom.grainger_q(grainger_attr_query, 'item.MATERIAL_NO', sku_str)
-        if grainger_df.empty == False:
-            grainger_att_vals, grainger_sample_vals = q.grainger_values(grainger_df)
-            grainger_sample_vals = grainger_sample_vals.rename(columns={'Grainger_Attribute_Value': 'Grainger Attribute Sample Values'})
-            temp_df, gamut_dict = grainger_process(grainger_df, grainger_sample_vals, grainger_att_vals, gamut_dict, sku_str)
-            attribute_df = pd.concat([attribute_df, temp_df], axis=0, sort=False)
-        else:
-            print('All SKUs are R4, R9, or discontinued') 
+    for attribute in atts:
+        #put all attribute values into a single string for TF-IDF processing later
+        temp_df = df.loc[df['Grainger_Attribute_Name']== attribute]
+        temp_df['Num'] = ""
+        temp_df['Str'] = ""
+        temp_df['Num_Candidate'] = 'N'
             
-    print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
+        for row in temp_df.itertuples():
+            value = row.Grainger_Attribute_Value
+            
+#                match = re.match(r"([0-9]+)([a-z]+)", value, re.I)
+#                r = re.compile(r"^\d*[.,]?\d*$")
+#                match = re.match(r"^\d*[.,]?\d*$", value, re.I)
+#                r = re.compile("^(?=.*?\d)\d*[.,]?\d*$")
+#                match = re.match("^(?=.*?\d)\d*[.,]?\d*$", value, re.I)
+#            r = re.match("^\d*\.?\d*", value, re.I)
 
-    return attribute_df
+#            r = re.compile('^\d*\.?\d*')
+            r = re.compile('^\d*[\.\/]?\d*')
 
+            temp_df.at[row.Index, 'Num'], temp_df.at[row.Index, 'Str'] = re.split(r, value)
+            num = r.search(value)           
+            temp_df.at[row.Index, 'Num'] = num.group()
+            
+#            if temp_df['Num'] != "":
+#                temp_df['Str'] = row.Grainger_Attribute_Value.extract('^\d*\.?\d*')
+   #         if match:
+   #             items = match.groups()
+   #             temp_df.at[row.Index,'Values'] = items
+
+#        temp_df['Grainger ALL Values'] = ' '.join(item for item in temp_df['Grainger_Attribute_Value'] if item)
+#        temp_df['Num'].replace(r'^\s*$', np.nan, regex=True)
+        
+#        null_col=temp_df.columns[temp_df.isnull().any()]
+        
+#        If temp_df[temp_df['Num'].isnull()][nuLL_col]:
+#        If temp_df['Num'].notna():
+            # signal that this attribute is a numeric candidate
+#            temp_df['Num_Candidate'] = 'Y'
+        nan_values = temp_df.isna()
+        nan_columns = nan_values.any()
+
+        print('NaN = ', nan_columns)
+        all_vals = pd.concat([all_vals, temp_df], axis=0)
+
+#    all_vals = all_vals.drop_duplicates(subset='Grainger_Attr_ID')
+#    all_vals = all_vals[['Grainger_Attr_ID', 'Grainger ALL Values']]
+
+#    all_vals.to_csv("F:/CGabriel/Grainger_Shorties/OUTPUT/vals.csv")
+
+    return all_vals
 
 #determine SKU or node search
 search_level = 'cat.CATEGORY_ID'
-
-
 data_type = fd.search_type()
+
 
 if data_type == 'grainger_query':
     search_level, data_process = fd.blue_search_level()
+elif data_type == 'value' or data_type == 'name':
+    while True:
+        try:
+            val_type = input('Search Type?:\n1. Exact value \n2. Value contained in field ')
+            if val_type in ['1', 'EXACT', 'exact', 'Exact']:
+                val_type = 'exact'
+                break
+            elif val_type in ['2', '%']:
+                val_type = 'approx'
+                break
+        except ValueError:
+            print('Invalid search type')
+    
+search_data = fd.data_in(data_type, settings.directory_name)
 
-    if data_process == 'one':
-        file_data = settings.get_files_in_directory()
-        for file in file_data:
-            search_data = [int(row[0]) for row in file_data[file][1:]]
-            attribute_df = attribute_process_singular(data_type, search_data)
-            attribute_df = attribute_df.drop(['Count'], axis=1)
-            fd.numbers_out(settings.directory_name, attribute_df, search_level)
+start_time = time.time()
+print('working...')
 
-    elif data_process == "two":
-        search_data = fd.data_in(data_type, settings.directory_name)
-        attribute_df = attribute_process_singular(data_type, search_data)
-        if attribute_df.empty==False:
-            fd.numbers_out(settings.directory_name, attribute_df, search_level)
+if data_type == 'grainger_query':
+    for k in search_data:
+        grainger_df = gcom.grainger_q(grainger_attr_query, search_level, k)
+        if grainger_df.empty == False:
+            df_stats = get_stats(grainger_df)
+            df_summary = grainger_values(grainger_df)
+            grainger_df = analyze(grainger_df)
+            fd.attr_data_out(settings.directory_name, grainger_df, df_stats, df_summary, search_level)
         else:
-            print('EMPTY DATAFRAME')
+            print('All SKUs are R4, R9, or discontinued')
+        print (k)
+        print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
+
+elif data_type == 'sku':
+        sku_str = ", ".join("'" + str(i) + "'" for i in search_data)
+        grainger_df = gcom.grainger_q(grainger_attr_query, 'item.MATERIAL_NO', sku_str)
+        if grainger_df.empty == False:
+            search_level = 'SKU'
+            df_stats = get_stats(grainger_df)
+            df_summary = grainger_values(grainger_df)
+            fd.attr_data_out(settings.directory_name, grainger_df, df_stats, df_summary, search_level)
+        else:
+            print('All SKUs are R4, R9, or discontinued')
+        print(search_data)
+        print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
+        
+elif data_type == 'name':
+    for k in search_data:
+        if val_type == 'exact':
+            if isinstance(k, int):  #k.isdigit() == True:
+                pass
+            else:
+                k = "'" + str(k) + "'"
+        elif val_type == 'approx':
+            k = "'%" + str(k) + "%'"
+        df = gcom.grainger_q(grainger_value_query, 'attr.DESCRIPTOR_NAME', k)
+        if grainger_df.empty == False:
+            fd.data_out(settings.directory_name, grainger_df, search_level, 'ATTRIBUTES')
+        else:
+            print('No results returned')
+        print(k)
+        print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
+
+elif data_type == 'value':
+    for k in search_data:
+        if val_type == 'exact':
+            if isinstance(k, int):  #k.isdigit() == True:
+                pass
+            else:
+                k = "'" + str(k) + "'"
+        elif val_type == 'approx':
+            k = "'%" + str(k) + "%'"
+        df = gcom.grainger_q(grainger_value_query, 'item_attr.ITEM_DESC_VALUE', k)
+        if df.empty == False:
+            fd.data_out(settings.directory_name, df, search_level, 'ATTRIBUTES')
+        else:
+            print('No results returned')
+        print(k)
+        print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
