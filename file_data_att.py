@@ -305,27 +305,48 @@ def hier_data_out(directory_name, grainger_df, gamut_df, quer, search_level):
 
 
 #output for attribute values for Grainger
-def attr_data_out(directory_name, df, df_stats, df_fill, search_level):
-    # Create a Pandas Excel writer using XlsxWriter as the engine.
+def GWS_upload_data_out(directory_name, df_upload, df_summary, search_level):
+
     df['Category_Name'] = modify_name(df['Category_Name'], '/', '_') #clean up node names to include them in file names   
-#    df.drop(columns=['Count', 'Fill_Rate %'], inplace=True)
+    pd.io.formats.excel.header_style = None
     
     quer = 'ATTRIBUTES'
-    outfile = outfile_name (directory_name, quer, df, search_level)
+    
+    columnsTitles = ['Category_ID', 'Category_Name', 'Grainger_Attr_ID', 'Grainger_Attribute_Name', \
+                     'Fill_Rate_%', '%_Numeric', 'Candidate', 'Grainger ALL Values']
+    df_summary = df_summary.reindex(columns=columnsTitles)
+    
+    columnTitles = ['STEP Blue Path' , 'Segment ID' , 'Segment Name' , 'Family ID' , 'Family Name' , \
+                'Category ID' , 'Category Name' , 'Attribute_ID' , 'Attribute Name' , 'Definition' , \
+                'Data Type' , 'Multivalued?' , 'Group' , 'Group Type' , 'Group Role' , \'Group Parameter' , \
+                'Restricted Attribute Value Domain' , 'Unit of Measure Domain' , 'Sample Values' , \
+                'Numeric display type' , 'Matching' , 'Gamut Attribute Sample Values']
+    df_upload = df_upload.reindex(columns=columnsTitles)
 
-  #  outfile = Path(directory_name)/"{} {} ATTRIBUTES.xlsx".format(k, df.iloc[0,2])   #set directory path and name output file
-    
+    # define Candidate sort order
+    sorter = ['Y', 'potential', 'N']
+    # dictionary that defines the order for sorting
+    sorterIndex = dict(zip(sorter,range(len(sorter))))
+    # generate rank column to sort df
+    df_summary['Can_Rank'] = df_summary['Candidate'].map(sorterIndex)
+
+    df_summary.sort_values(['Category_Name', 'Can_Rank', 'Grainger_Attribute_Name'], \
+                        ascending=[True, True, True], inplace = True)
+    df_summary.drop('Can_Rank', 1, inplace=True)
+    outfile = outfile_name (directory_name, quer, df, search_level)
     writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
-    
+   
     # Write each dataframe to a different worksheet.
-    df_fill.to_excel(writer, sheet_name='Stats', startrow =1, startcol=0, index=False)
-    df_stats.to_excel(writer, sheet_name='Stats', startrow=1, startcol=5)
-    df.to_excel(writer, sheet_name='Data', index=False)
+    df_summary.to_excel(writer, sheet_name='Summary', startrow =1, startcol=0, index=False)
+    df_upload.to_excel(writer, sheet_name='Upload Data', index=False)
+#    df_stats.to_excel(writer, sheet_name='Data', startrow=1, startcol=0)
+#    df.to_excel(writer, sheet_name='Raw', index=False)
     
     # Get the xlsxwriter workbook and worksheet objects.
     workbook  = writer.book
-    worksheet1 = writer.sheets['Stats']
-    worksheet2 = writer.sheets['Data']
+    worksheet1 = writer.sheets['Summary']
+    worksheet2 = writer.sheets['Upload Data']
+ #   worksheet3 = writer.sheets['Raw']
   
     layout = workbook.add_format()
     layout.set_text_wrap('text_wrap')
@@ -337,17 +358,34 @@ def attr_data_out(directory_name, df, df_stats, df_fill, search_level):
 
     num_layout = workbook.add_format()
     num_layout.set_num_format('##0.00')
-                                      
-    #setup display for Stats sheet
-    worksheet1.set_column('A:A', 30, layout)
-    worksheet1.set_column('B:B', 15, num_layout)
-    worksheet1.set_column('C:C', 15, layout)
-    worksheet1.set_column('F:F', 30, layout)
-    worksheet1.set_column('G:G', 60, layout)
+
+    col_widths = get_col_widths(df_summary)
+    col_widths = col_widths[1:]
     
-    #steup display for Data sheet
-    worksheet2.set_column('F:F', 25, layout)
-    worksheet2.set_column('G:G', 30, layout)
-    worksheet2.set_column('H:H', 60, layout)
+    for i, width in enumerate(col_widths):
+        if width > 40:
+            width = 40
+        elif width < 10:
+            width = 10
+        worksheet1.set_column(i, i, width) 
+
+    col_widths = get_col_widths(df_upload)
+    col_widths = col_widths[1:]
+    
+    for i, width in enumerate(col_widths):
+        if width > 40:
+            width = 40
+        elif width < 10:
+            width = 10
+        worksheet2.set_column(i, i, width) 
+
+    #setup display for Data sheet
+#    worksheet2.set_column('A:A', 30, layout)
+#    worksheet2.set_column('B:B', 60, layout)
+    
+    #steup display for Raw sheet
+#    worksheet3.set_column('F:F', 25, layout)
+#    worksheet3.set_column('G:G', 30, layout)
+#    worksheet3.set_column('H:H', 60, layout)
     
     writer.save()

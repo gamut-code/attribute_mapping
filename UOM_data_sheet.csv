@@ -1,0 +1,299 @@
+﻿Abbreviation (exact),Definition/Comments
+,
+"""","inches. ("") symbol used with all attribute data values as well as copy (not ""in."")"
+°,degrees (Description only) see Celsius and Fahrenheit
+° C,"degrees Celsius; repeat only degree symbol in a range, ex: 40° to 50°C"
+° F,"degrees Fahrenheit; repeat only degree symbol in a range, ex: 80° to 120° F"
+°C,"degrees Celsius; repeat only degree symbol in a range, ex: 40° to 50°C"
+°F,"degrees Fahrenheit; repeat only degree symbol in a range, ex: 80° to 120°F"
+1-Phase,single phase
+2XL,Extra-extra large. Gamut only uses the number + XL
+3PDT,three pole double throw
+3-Phase,three phase
+3XL,Extra-extra-extra large.  Gamut only uses the number + XL
+4XL,Extra-extra-extra extra larg.  Gamut only uses the number + XL
+9V,"battery sizes. do not spell out ""Double A"" or ""Triple A"""
+A,amps
+AAA,"battery sizes. do not spell out ""Double A"" or ""Triple A"""
+Ah,amp hours
+@,"""at"" preferred in body copy; ""at"" or ""@"" fine for table attribute & column header"
+at,"""at"" preferred in body copy; ""at"" or ""@"" fine for table attribute & column header"
+AWG,American wire gauge
+BeV,billion electron volts
+Btu,"British thermal units. set apart, ex: 3400 Btu"
+BTU/hr,British Thermal Units per Hour
+BtuH,British thermal units/hour
+bu,Bushel
+bu.,bushels
+C,"battery sizes. do not spell out ""Double A"" or ""Triple A"""
+cal,calories. set apart
+cal.,calories. set apart
+cal./cm2,calories of heat energy per square centimeter
+cal/sq cm ,Calories per Square Centimeters
+cc,cubic centimeters
+CCW,counterclockwise
+cfm,cubic feet per minute
+cg,centigrams
+cL,centiliters (L always capital)
+cm,centimeters
+CP,candlepower
+"cP, cps","Centipoise, cP shown in Gamut standard, but cps used in UOM workstation"
+cps,cycles per second
+ct ,carats
+cu,cubic
+cu ft,cubic feet - no hyphens
+cu in,cubic inches - no hyphens
+cu in/min,cubic inches per minute
+cu m/hr,Cubic meters per hour
+cu yd,cubic yards - no hyphens
+cu.,cubic
+cu. ft.,cubic feet - no hyphens
+cu. in.,cubic inches - no hyphens
+cu. in./min.,cubic inches per minute
+cu. yd.,cubic yards - no hyphens
+D,"battery sizes. do not spell out ""Double A"" or ""Triple A"""
+daN,decanewtons
+day,Days
+days,days
+dB,decibels
+dBA,A-weighted decibels
+DC,direct current
+deg.,degrees (Description only) see Celsius and Fahrenheit
+Dia,diameter
+dia.,diameter
+dim.,dimensions
+dkL,decaliters (L always capital)
+dL,deciliters (L always capital)
+dm,decimeters
+doz,dozen
+doz.,dozen
+Dp,Depth or Deep. Also for shortened table names in Merchandising. 
+DPDT,double pole double throw
+dwt,"deadweight ton, pennyweight"
+eV,electron volts
+fc,foot-candles
+fl oz,Fluid Ounces
+fl. oz. ,fluid ounces - no hyphens
+fpm,feet per minute
+fps,feet per second
+ft,feet
+ft.,feet
+ft.-lb.,foot-pounds
+ft-lb,Foot-pounds
+g,grams
+g/L ,grams per liter (L always capital)
+ga,gauge
+ga.,"gauge.  If needed to be spelled out, the spelling should be Gauge, not Gage."
+gal,gallons
+gal.,gallons
+GB,gigabyte
+GHz,gigahertz
+gn,grain
+gn.,grain
+gpd,gallons per day
+gph,gallons per hour
+gpm,gallons per minute
+gr,Gross
+gr wt,gross weight
+gr. ,gross
+gr. wt.,gross weight
+GW,gigawatts
+H,"height, high"
+HP,horsepower
+hr,hours
+hr.,hours
+HSS,High Speed Steel
+Ht,Height
+Hz,hertz
+I.D.,inside diameter or inside dimensions
+ID,inside diameter or inside dimensions
+in,"preferred over "" mark"
+in of H2O,inches of H20
+in.,inches (for use in table column headers)
+in. hg,inches of mercury
+in. wc,inches of water column
+in. wg,inches of water gauge
+in./min.,inches per minute
+in.-lb.,inch-pounds
+in.-oz.,inch-ounces
+in/min,inches per minute
+in/sec,inches per second
+in-lb,inch-pounds
+in-oz,inch-ounces
+ips,inches per second
+J,Joules
+k,kilos
+kA,kiloamps
+KB,kilobytes
+kcmil ,one thousand circular mil
+keV,kiloelectron volts
+kg,kilograms
+kHz,kilohertz
+kilohm,no abbreviation (omega symbol impacts downstream systems)
+kL,kiloliters (L always capital)
+km,kilometers
+kmph,kilometers per hour
+kmps,kilometers per second
+kN,kilonewtons
+kVA,kilovolt amperes
+kW,kilowatts
+kWh,kilowatt hours
+L,large
+lb,pounds
+lb.,pounds
+lb./hr.,pounds per hour
+lb/hr,pounds per hour
+Lg,"length, long"
+lm,lumens
+Lpm,liters per minute (L always capital)
+m,meters
+m3/hr.,cubic meters per hour
+mA,milliamps
+mAh,milliamp hours
+max,"Maximum, though this is only abbreviated in merchandising. "
+max.,maximum
+MB,megabytes
+mbps,million bits per second
+mcf,thousand cubic feet
+mcg/mL,micrograms per milliliters
+megohm,no abbreviation (omega symbol impacts downstream systems)
+mesghal,unit of mass
+metric ton,metric tons (are different from standard tons by about 200 lb.)
+mg,milligrams
+mg/L,milligrams per liter
+MHz,megahertz
+mi,miles
+mi.,miles
+microhm,no abbreviation (omega symbol impacts downstream systems)
+microhms ,Micro ohms
+microsiemens/cm,no further abbreviation (lower case Greek symbol impacts downstream systems)
+mil,measurement equal to 1/1000”
+milliohm,no abbreviation (omega symbol impacts downstream systems)
+min,"Minimum, though this is only abbreviated in merchandising. "
+min.,minimum
+min./max.,minimum/maximum
+min/max,"Minimum/Maximum, though these are only abbreviated in merchandising. "
+mK,millikelvin
+mL,milliliters (L always capital)
+mm,millimeters
+mm of Hg,Millimeters of mercury
+mmHg,millimeters of mercury
+mo,month
+mo.,month
+MP,megapixels
+mpg,miles per gallon
+mph,miles per hour
+msec,milliseconds
+mV,millivolts
+mW,milliwatts
+N,Newtons
+nm,nanometers
+N-m,Newton Meters
+No.,number
+NRR,noise reduction rating
+ns,nanoseconds
+O.D.,"outside diameter, outside dimensions"
+OD,optical density
+ohm,ohm - no abbreviation (omega symbol impacts downstream systems)
+Op Den,optical density
+oz,ounces
+oz.,ounces
+oz.-ft.,ounce-feet
+oz-ft,ounce-feet
+ozt,troy ounces
+Pa,Pascal
+pcs.,pieces
+per min.,Per minute
+pH,acid measure
+pieces,Gamut does not abbreviate pieces
+pk,pack
+pk.,pack
+pkg,package
+pkg.,package
+ppb,parts per billion
+ppm,parts per million
+ppt,parts per trillion
+pr,pairs
+pr.,pairs
+psi,pounds per square inch
+psia,pounds per square inch absolute
+psig,pounds per square inch gauge
+pt,pints
+pt.,pints
+qt,quarts
+qt.,quarts
+qty,quantity
+qty.,quantity
+qty./pkg.,quantity per package
+qty/pkg,quantity per package
+rad,standard unit of absorbed radiation
+RH,relative humidity
+RMS,root mean square 
+rpm,revolutions per minute
+S.P.,static pressure
+scfm,standard cubic feet per minute
+sec,seconds
+sec.,seconds
+Sh. Wt.,shipping weight
+Single,"Phase is a text attribute with allowed values of ""Single"", ""Three"""
+slpm,standard litre per minute
+SP,static pressure
+SPDT,single pole double throw
+spm,strokes per minute
+SPST,single pole single throw
+sq,square
+sq ft,square feet - no hyphens
+sq ft/hr,square feet per hour
+sq in,square inches - no hyphens
+sq m,square meters - no hyphens
+sq yd,square yards - no hyphens
+sq.,square
+sq. ft.,square feet - no hyphens
+sq. ft./hr.,square feet per hour
+sq. in.,square inches - no hyphens
+sq. m,square meters - no hyphens
+sq. yd.,square yards - no hyphens
+std.,standard
+STEL,short-term exposure limit
+t,metric tons (are different from standard tons by about 200 lb.)
+tael,unit of measure (used in balances)
+TB,Terabyte
+Three,"Phase is a text attribute with allowed values of ""Single"", ""Three"""
+tical,unit of measure (used in balances)
+TLV,threshold limit value
+ton,ton (no abbreviation
+tons,no abbreviation
+TPI,Threads per Inch
+TSP,total suspended particulate
+Turbidity,no abbreviation
+TW,Terawatts
+TWA,time-weighted average
+uL,microliters
+UV-A,ultraviolet-A
+UV-B,ultraviolet-B
+UV-C,ultraviolet-C
+V,volts
+V AC,volts - alternating current
+V DC,volts - direct current
+VA,volts ampere
+VAC,volts - alternating current.  This is the preferred UOM over V or not using a UOM for voltage.
+VDC,volts - direct current. This is the preferred UOM over V or not using a UOM for voltage.
+vol,volume
+vol.,volume
+VPM,vibrations per minute
+Vrms,"root mean square used with subscript modifier ""V"" to designate Voltage (note the change in punctuation from RMS)"
+W,watts
+Wd,Width
+wk.,week
+wt,weight
+wt.,weight
+X,magnification power
+XL,extra-large
+XS,extra-small
+XXL,"extra-extra-large (GIS uses numeric; Specialty, both)"
+XXXL,"extra-extra-extra-large (GIS uses numeric to save space; Specialty, both)"
+XXXXL,"extra-extra-extra-extra-large (GIS uses numeric to save space; Specialty, both)"
+yd,yards
+yd.,yards
+yr,years
+yr.,years
