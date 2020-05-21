@@ -144,6 +144,9 @@ gamut_hier_query="""
             INNER JOIN tax
                 ON tax.id = tprod."categoryId"
                 -- AND (10006 = ANY(tax.ancestors)) --OR 8215 = ANY(tax.ancestors) OR 7739 = ANY(tax.ancestors))  -- *** ADD TOP LEVEL NODES HERE ***
+            , item.MATERIAL_NO AS Grainger_SKU
+            , attr.DESCRIPTOR_ID as Grainger_Attr_ID
+            , attr.DESCRIPTOR_NAME as Grainger_Attribute_Name
 
             WHERE {} IN ({})
             """
