@@ -120,3 +120,57 @@ def gamut_values(query, node, query_type):
         print('GWS node {} NO VALUES'.format(node))
         
     return all_vals
+
+
+def grainger_assign_nodes (grainger_df, gamut_df, node):
+    """assign gamut node data to grainger columns"""
+    
+    att_list = []
+    
+    node_ID = gamut_df['Gamut_Node_ID'].unique()
+    cat_ID = gamut_df['Gamut_Category_ID'].unique()
+    cat_name = gamut_df['Gamut_Category_Name'].unique()
+    node_name = gamut_df['Gamut_Node_Name'].unique()
+    pim_path = gamut_df['Gamut_PIM_Path'].unique()
+
+    atts = grainger_df['Grainger_Attribute_Name'].unique()
+    att_list = [att for att in atts if att]
+    att_list = np.char.strip(att_list)
+
+    for att in att_list:
+        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_Node_ID'] = node_ID
+        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_Category_ID'] = cat_ID
+        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_Category_Name'] = cat_name
+        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_Node_Name'] = node_name
+        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_PIM_Path'] = pim_path
+    
+    return grainger_df
+
+
+def gamut_assign_nodes (grainger_df, gamut_df):
+    """assign grainger node data to gamut columns"""
+    
+    att_list = []
+    
+    blue = grainger_df['STEP Blue Path'].unique()
+    seg_ID = grainger_df['Segment_ID'].unique()
+    seg_name = grainger_df['Segment_Name'].unique()
+    fam_ID = grainger_df['Family_ID'].unique()
+    fam_name = grainger_df['Family_Name'].unique()
+    cat_ID = grainger_df['Category_ID'].unique()
+    cat_name = grainger_df['Category_Name'].unique()
+    
+    atts = gamut_df['Gamut_Attribute_Name'].unique()
+    att_list = [att for att in atts if att]
+    att_list = np.char.strip(att_list)
+    
+    for att in att_list:
+        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Category_ID'] = cat_ID
+        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'STEP Blue Path'] = blue
+        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Segment_ID'] = seg_ID
+        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Segment_Name'] = seg_name
+        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Family_ID'] = fam_ID
+        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Family_Name'] = fam_name
+        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Category_Name'] = cat_name
+
+    return gamut_df

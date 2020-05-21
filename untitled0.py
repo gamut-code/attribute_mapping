@@ -1,32 +1,25 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Apr  4 19:10:27 2020
+Created on Wed May 20 21:44:43 2020
 
 @author: xcxg109
 """
-import random
 
-x = 146000
+import pandas as pd
+import io
+import requests
 
-sku_list = [random.randrange(1, 50, 1) for i in range(x)] 
+uom_df = pd.DataFrame()
 
-print('sku_list length =', len(sku_list))
-if len(sku_list)>30000:
-    num_lists = round(len(sku_list)/30000, 0)
-    num_lists = int(num_lists)
-    
-    if num_lists == 1:
-        num_lists = 2
-        
-    print('running SKUs in {} batches'.format(num_lists))
-    
-    size = round(x/num_lists, 0)
-    size = int(size)
+url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/UOM_data_sheet.csv'
+uom_list = list()
+uom_set = set()
 
-    div_lists = [sku_list[i * size:(i + 1) * size] for i in range((len(sku_list) + size - 1) // size)]
+data_file = requests.get(url).content
+uom_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
 
-    for k  in range(0, len(div_lists)):
-        gamut_skus = ", ".join("'" + str(i) + "'" for i in div_lists[k])
-        print('batch {}: SKUs = {}'.format(k, len(div_lists[k])))
-else:
-    print('SKUs = {}'.format(len(sku_list)))    
+#uom_list = uom_df['uoms_in_group'].unique()
+for row in uom_df.itertuples():    
+    uom_list = uom_df['uoms_in_group'].str.split(';',expand=True)
+    print('ROW {} {}'.format(row, uom_list))
+#res_df = uom_df[uom_df['uoms_in_group'].str.contains('in.')]

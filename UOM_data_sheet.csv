@@ -1,126 +1,246 @@
-﻿unit_group_id,uoms_in_group,unit_group_name
-87,m/sq sec,Acceleration
-143,ppm,Accuracy Rate
-139,air watts,Air Watts
-144,dBm,Amplitude Ratio
-34,deg.; °,Angle
-152,180°/sec; 270°/sec; 360°/sec; 90°/sec,Angular Speed
-4,acre; sq cm; sq ft; sq in; sq m; sq mm; sq. ft.; sq. in.; sq. yd.; sq yd; sq. m,Area
-81,ga; micron; mil; mm; ga.,Bag Thickness - 3
-54,Ah; mAh,Battery Capacity - 2
-89,bpm,Blows Per Minute
-104,F; mF; nF; pF; uF,Capacitance
-135,milliOhms/ft; ohm/1000 ft; pF/ft,Capacitance Over Distance
-141,lb; lb/sq ft; lb/sq in; oz; lb.; oz.,Capacity - 8
-188,x g,Centrifugal Force
-178,bit,Color Depth
-145,GB; KB; MB; TB,Computer Memory Capacity
-189,fl oz/gal; mg/L; mol/L; normality; ppb; ppm; ppt; % v/v; % w/w,Concentration
-186,mS; mS/cm; S; S/cm; microsiemens/cm; microseimens/cm,Conductance
-181,BTU/hr; tons; BtuH,Cooling Capacity
-153,Bills/min; Coins/min; cpm; Notes/min,Counts per Minute
-151,acre/gal; sq ft/gal; sq m/gal,Coverage Area
-133,in/rev; mm/rev,Cross Feed
-155,A; kA; mA; nA; picoA; uA,Current
-168,A/ft; mA/ft; uA/ft,Current - Linear
-134,A/hr,Current per Hour
-123,sec/stroke,Cycle Time
-137,Gbps; Kbps; Mbit/s; MBps; mbps,Data Transfer Speed
-136,dBi,dBi - Antenna Gain
-107,lb/ft,Density - Linear
-157,g/L; lb/cu ft; lb/cu in; lb/gal; lb/sq yd; mg/cu m; mcg/mL,Density - Volume
-23,kV/in; kV/mm; mV/m; V/in; V/m; V/mil,Dielectric Strength
-125,cu cm/rev; cu in/rev,Displacement
-80,ipr,Downfeed Rate
-173,GeV; keV; megaelectronvolt; millielectronvolt; PeV; TeV; eV; BeV,ElectronVolt
-99,BTU/hr; BtuH; kWh,Energy - 2
-25,g/min; gpd; gph; gpm; kg/hr; lb/hr; lb/min; oz/min; lb./hr.,Flow - Mass
-39,cc/min; CFH; cfm; cu in/min; cu in/sec; cu m/hr; gpd; gph; gpm; L/h; lpm; L/sec; mL/min; pt/hr; qt/hr; qt/min; scfh; scfm; scim; slpm; cu. in./min.; m3/hr.; Lpm,Flow 2
-119,cc/hr; cc/min; oz/min; qt/min,Flow 3
-122,g/stroke; oz/min; oz/stroke; qt/rotation,Flow 5
-162,C; cu ft; cu in; fl oz; gal; L; mL; pt; qt; tbsp; tsp; cu. ft.; cu. in.; fl. oz.; gal.; pt.; qt.,Fluid Capacity - General
-163,cc; fl oz; µl; mL; kL; dL; dkL; cL; uL; fl. oz. ,Fluid Capacity - Precision
-179,point,Font Size
-112,kgf; kN; lbf; N; ozf; daN,Force
-73,GHz; Hz; kHz; MHz; μHz; uHz,Frequency
-180,gph; lb/hr; lb./hr.,Fuel Consumption
-175,MP,Graphic Resolution
-70,hp; HP,Horsepower
-113,psi; Tonf,Hydraulic Pressure
-177,ft-lbf,Impact Energy
-91,ft-lb; J; ft.-lb.,Impact Force
-82,ipm,Impacts per Minute
-24,BTU; BTU-ft/sq ft-hr-° F; cal/sq cm; W/mK; mcf; Btu; cal./cm2,Indident Energy
-147,H; µH; mH; uH,Inductance Henry
-149,K,Kelvin - Lighting
-2,"cm; ft; in; m; mm; yd; ""; ft.; in.; km; yd.",Length - General
-60,"cm; dm; in; micron; mm; ""; in.",Length - Precise
-131,ft; m; mi; yd; ft.; km; mi.; yd.,Length 6
-132,CD; cp; fc; lm; lm/W; lux; mcd; nit; CP,Light
-169,J; kWh,Light Energy Output
-174,TVL,Lines of Horizontal Resolution
-182,Gs,Magnetism
-110,Diopter,Magnification
-51,carat; ct ,Mass of Gemstone or Pearl
-46,"cm; ga; in; micron; mil; mm; ""; in.; ga.",Material Thickness
-108,den; g; Gauge; g/sq in; g/sq m; lb; oz; oz/sq ft; oz/sq yd; ozt; cg; lb.; mesghal; oz.,Material Weight
-187,° C/min; ° F/min,Melt Ramp Rate
-185,g/mol,Molar Mass
-127,g-sq cm; kg-m sq; lb-in sq; lb sq ft,Moment of Inertia
-94,opm,Orbits per Minute
-140,kpps; Mpps; pps,Packets per Second
-183,"in; mesh; micron; ""; in.",Particle Size
-6,%,Percentage
-170,perm; perm-in,Permeability
-190,pH,pH
-148,kilopoints; megapoints; points,Points Length
-197,μm; um,Pore Size
-105,GW; hp; kVA; kW; mW; TW; VA; W; HP,Power
-7,bar; ft of H2O; ft of head; GPa; in of H2O; in of Hg; kg/sq cm; kPa; ksi; lbf/sq in; lb-ft sq; micron of Hg; mm of Hg; m of head; MPa; N/sq mm; oz/sq in; Pa; psi; psid; psig; in. wc; in. hg; mmHg; mm Hg,Pressure
-8,kg/sq cm; psi; psi/hr,Pressure 2
-142,lb/sq in-fpm; N/sq mm-mps,Pressure Velocity (PV)
-172,LPS,Printer Speed
-194,pulses/gal; pulses/L,Pulses Generated
-97,sec/punch,Punch Speed
-150,kgf; kN; lbf; N; daN,Radial Load Capacity
-999,rad,Radiation
-184,kvar,Reactive Power
-10,microhm-cm; milliohms-cm; ohm/1000 ft; ohms-cm,Resistance - Bulk
-9,gigaohms; kilohms; megaohms; microhms; milliohms; ohms; ohm/sq; teraohms; kilohm; megohm; microhm; milliohm; ohm,Resistance - Sheet
-171,dpi; MP; px,Resolution
-129,in/ft; micrometer/300 mm; mm/300 mm,Screw Lead Accuracy
-79,dB; sones; dBA,Sound Level
-93,fpm; ft/min; in/min; in/sec; km/h; m/min; mm/sec; mph; fps; in./min.; ft./min.; ips; kmps; kmph,Speed
-88,fpm; SFPM; fps,Speed - Cutting Surface
-42,RPM; rpm,Speed - Rotation
-90,sq ft/hr,Square Feet per Hour
-92,sps,Strike Rate
-120,stroke/lb; stroke/oz,Stroke Rate
-78,spm,Strokes per Minute
-146,ppm/1 msec,Sweep Speed
-192,lb/in; N/mm; oz/in,Tape Tensile Strength
-1,° C; ° F; mK; °C; °F,Temperature
-106,° C/W; ° F/W,Thermal Resistivity
-158,day; hr; min; mo; sec; wk; yr; days; hr.; mo.; wk.; yr.,Time - General
-159,1/MHz; min; msec; nsec; sec; ns,Time - precise
-161,ft-lb; gf-cm; in-lb; in-oz; kg-cm; kg-m; lb-ft; lb-in; N-m; oz-ft; oz-in; ft.-lb.; in.-lb.; in.-oz.; oz.-ft.,Torque
-126,Deg/lb-in; in-lb/rad; Nm/Deg; N-m/rad,Torsional Stifness
-130,in/1 of Travel; Micrometer/25 mm of travel,Travel Accuracy
-198,NTU,Turbidity
-86,sec/tie,Tying Speed
-121,in of Hg; in. hg,Vacuum
-193,vpm; VPM,Vibration Frequency
-17,cps; cSt; lbs/ft-s; SUS,Viscosity
-116,cSt,Viscosity - 2
-117,SUS,Viscosity - 3
-19,kV AC; kV DC; V AC; V AC/DC; V DC; VAC; DC; VDC,Voltage
-56,kV; kV AC; kV DC; mV; mV AC; mV DC; nV; nV AC; nV DC; V; V AC; V DC; VAC; DC; VDC,Voltage - Current Specified
-165,V,Voltage - General
-164,bu; cc; cu ft; cu in; cu m; cu yd; bu.; cu. ft.; cu. in.; cu. yd.,Volume
-200,gpf,Water Consumption
-167,W/ft,Wattage - Linear
-166,mW/sq cm; W/sq ft; W/sq in; W/sq m; W/sq mm,Wattage Density
-109,nm,Wavelength
-52,g; kg; lb; mg; oz; ton; Tonne; ozt; cg; k; lb.; gn.; gn; mesghal; oz.; t; metric ton,Weight
-191,ft/lb,Weight (Welding Rods)
-58,"AWG; ga; in; kcmil; micron; mm; ""; in.; ga.",Wire Gauge
+﻿Abbreviation (exact),Definition/Comments,,,
+"""","inches. ("") symbol used with all attribute data values as well as copy (not ""in."")",,,""""
+°,degrees (Description only) see Celsius and Fahrenheit,,,
+° C,"degrees Celsius; repeat only degree symbol in a range, ex: 40° to 50°C",,,
+° F,"degrees Fahrenheit; repeat only degree symbol in a range, ex: 80° to 120° F",,,
+°C,"degrees Celsius; repeat only degree symbol in a range, ex: 40° to 50°C",,,
+°F,"degrees Fahrenheit; repeat only degree symbol in a range, ex: 80° to 120°F",,,
+Ah,amp hours,,,
+AWG,American wire gauge,,,
+BeV,billion electron volts,,,
+Btu,"British thermal units. set apart, ex: 3400 Btu",,,
+BTU/hr,British Thermal Units per Hour,,,
+BtuH,British thermal units/hour,,,
+bu,Bushel,,,
+bu.,bushels,,,
+cal,calories. set apart,,,
+cal.,calories. set apart,,,
+cal./cm2,calories of heat energy per square centimeter,,,
+cal/sq cm ,Calories per Square Centimeters,,,
+cc,cubic centimeters,,,
+cfm,cubic feet per minute,,,
+cg,centigrams,,,
+cL,centiliters (L always capital),,,
+cm,centimeters,,,
+CP,candlepower,,,
+"cP, cps","Centipoise, cP shown in Gamut standard, but cps used in UOM workstation",,,
+cps,cycles per second,,,
+ct ,carats,,,
+cu ft,cubic feet - no hyphens,,,
+cu in,cubic inches - no hyphens,,,
+cu in/min,cubic inches per minute,,,
+cu m/hr,Cubic meters per hour,,,
+cu yd,cubic yards - no hyphens,,,
+cu. ft.,cubic feet - no hyphens,,,
+cu. in.,cubic inches - no hyphens,,,
+cu. in./min.,cubic inches per minute,,,
+cu. yd.,cubic yards - no hyphens,,,
+daN,decanewtons,,,
+day,Days,,,
+days,days,,,
+dB,decibels,,,
+dBA,A-weighted decibels,,,
+DC,direct current,,,
+deg.,degrees (Description only) see Celsius and Fahrenheit,,,
+dkL,decaliters (L always capital),,,
+dL,deciliters (L always capital),,,
+dm,decimeters,,,
+doz,dozen,,,
+doz.,dozen,,,
+eV,electron volts,,,
+fc,foot-candles,,,
+fl oz,Fluid Ounces,,,
+fl. oz. ,fluid ounces - no hyphens,,,
+fpm,feet per minute,,,
+fps,feet per second,,,
+ft,feet,,,
+ft.,feet,,,
+ft.-lb.,foot-pounds,,,
+ft-lb,Foot-pounds,,,
+g,grams,,,
+g/L ,grams per liter (L always capital),,,
+ga,gauge,,,
+ga.,"gauge.  If needed to be spelled out, the spelling should be Gauge, not Gage.",,,
+gal,gallons,,,
+gal.,gallons,,,
+GB,gigabyte,,,
+GHz,gigahertz,,,
+gn,grain,,,
+gn.,grain,,,
+gpd,gallons per day,,,
+gph,gallons per hour,,,
+gpm,gallons per minute,,,
+gr,Gross,,,
+gr wt,gross weight,,,
+gr. ,gross,,,
+gr. wt.,gross weight,,,
+GW,gigawatts,,,
+HP,horsepower,,,
+hr,hours,,,
+hr.,hours,,,
+Hz,hertz,,,
+in,"preferred over "" mark",,,
+in of H2O,inches of H20,,,
+in.,inches (for use in table column headers),,,
+in. hg,inches of mercury,,,
+in. wc,inches of water column,,,
+in. wg,inches of water gauge,,,
+in./min.,inches per minute,,,
+in.-lb.,inch-pounds,,,
+in.-oz.,inch-ounces,,,
+in/min,inches per minute,,,
+in/sec,inches per second,,,
+in-lb,inch-pounds,,,
+in-oz,inch-ounces,,,
+ips,inches per second,,,
+J,Joules,,,
+k,kilos,,,
+kA,kiloamps,,,
+KB,kilobytes,,,
+kcmil ,one thousand circular mil,,,
+keV,kiloelectron volts,,,
+kg,kilograms,,,
+kHz,kilohertz,,,
+kilohm,no abbreviation (omega symbol impacts downstream systems),,,
+kL,kiloliters (L always capital),,,
+km,kilometers,,,
+kmph,kilometers per hour,,,
+kmps,kilometers per second,,,
+kN,kilonewtons,,,
+kVA,kilovolt amperes,,,
+kW,kilowatts,,,
+kWh,kilowatt hours,,,
+lb,pounds,,,
+lb.,pounds,,,
+lb./hr.,pounds per hour,,,
+lb/hr,pounds per hour,,,
+Lg,"length, long",,,
+lm,lumens,,,
+Lpm,liters per minute (L always capital),,,
+m,meters,,,
+m3/hr.,cubic meters per hour,,,
+mA,milliamps,,,
+mAh,milliamp hours,,,
+MB,megabytes,,,
+mbps,million bits per second,,,
+mcf,thousand cubic feet,,,
+mcg/mL,micrograms per milliliters,,,
+megohm,no abbreviation (omega symbol impacts downstream systems),,,
+mesghal,unit of mass,,,
+metric ton,metric tons (are different from standard tons by about 200 lb.),,,
+mg,milligrams,,,
+mg/L,milligrams per liter,,,
+MHz,megahertz,,,
+mi,miles,,,
+mi.,miles,,,
+microhm,no abbreviation (omega symbol impacts downstream systems),,,
+microhms ,Micro ohms,,,
+microsiemens/cm,no further abbreviation (lower case Greek symbol impacts downstream systems),,,
+mil,measurement equal to 1/1000”,,,
+milliohm,no abbreviation (omega symbol impacts downstream systems),,,
+mK,millikelvin,,,
+mL,milliliters (L always capital),,,
+mm,millimeters,,,
+mm of Hg,Millimeters of mercury,,,
+mmHg,millimeters of mercury,,,
+mo,month,,,
+mo.,month,,,
+MP,megapixels,,,
+mpg,miles per gallon,,,
+mph,miles per hour,,,
+msec,milliseconds,,,
+mV,millivolts,,,
+mW,milliwatts,,,
+N,Newtons,,,
+nm,nanometers,,,
+N-m,Newton Meters,,,
+NRR,noise reduction rating,,,
+ns,nanoseconds,,,
+ohm,ohm - no abbreviation (omega symbol impacts downstream systems),,,
+Op Den,optical density,,,
+oz,ounces,,,
+oz.,ounces,,,
+oz.-ft.,ounce-feet,,,
+oz-ft,ounce-feet,,,
+ozt,troy ounces,,,
+Pa,Pascal,,,
+pcs.,pieces,,,
+per min.,Per minute,,,
+pH,acid measure,,,
+pk,pack,,,
+pk.,pack,,,
+pkg,package,,,
+pkg.,package,,,
+ppb,parts per billion,,,
+ppm,parts per million,,,
+ppt,parts per trillion,,,
+pr,pairs,,,
+pr.,pairs,,,
+psi,pounds per square inch,,,
+psia,pounds per square inch absolute,,,
+psig,pounds per square inch gauge,,,
+pt,pints,,,
+pt.,pints,,,
+qt,quarts,,,
+qt.,quarts,,,
+qty,quantity,,,
+qty.,quantity,,,
+qty./pkg.,quantity per package,,,
+qty/pkg,quantity per package,,,
+rad,standard unit of absorbed radiation,,,
+RH,relative humidity,,,
+RMS,root mean square ,,,
+rpm,revolutions per minute,,,
+S.P.,static pressure,,,
+scfm,standard cubic feet per minute,,,
+sec,seconds,,,
+sec.,seconds,,,
+Sh. Wt.,shipping weight,,,
+Single,"Phase is a text attribute with allowed values of ""Single"", ""Three""",,,
+slpm,standard litre per minute,,,
+SP,static pressure,,,
+SPDT,single pole double throw,,,
+spm,strokes per minute,,,
+SPST,single pole single throw,,,
+sq,square,,,
+sq ft,square feet - no hyphens,,,
+sq ft/hr,square feet per hour,,,
+sq in,square inches - no hyphens,,,
+sq m,square meters - no hyphens,,,
+sq yd,square yards - no hyphens,,,
+sq.,square,,,
+sq. ft.,square feet - no hyphens,,,
+sq. ft./hr.,square feet per hour,,,
+sq. in.,square inches - no hyphens,,,
+sq. m,square meters - no hyphens,,,
+sq. yd.,square yards - no hyphens,,,
+std.,standard,,,
+STEL,short-term exposure limit,,,
+t,metric tons (are different from standard tons by about 200 lb.),,,
+tael,unit of measure (used in balances),,,
+TB,Terabyte,,,
+tical,unit of measure (used in balances),,,
+TLV,threshold limit value,,,
+ton,ton (no abbreviation,,,
+tons,no abbreviation,,,
+TPI,Threads per Inch,,,
+TSP,total suspended particulate,,,
+Turbidity,no abbreviation,,,
+TW,Terawatts,,,
+TWA,time-weighted average,,,
+uL,microliters,,,
+V,volts,,,
+V AC,volts - alternating current,,,
+V DC,volts - direct current,,,
+VA,volts ampere,,,
+VAC,volts - alternating current.  This is the preferred UOM over V or not using a UOM for voltage.,,,
+VDC,volts - direct current. This is the preferred UOM over V or not using a UOM for voltage.,,,
+VPM,vibrations per minute,,,
+Vrms,"root mean square used with subscript modifier ""V"" to designate Voltage (note the change in punctuation from RMS)",,,
+W,watts,,,
+Wd,Width,,,
+wk.,week,,,
+yd,yards,,,
+yd.,yards,,,
+yr,years,,,
+yr.,years,,,

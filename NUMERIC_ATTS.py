@@ -92,60 +92,6 @@ def gamut_process(node, gamut_dict: Dict, k):
     return gamut_dict, gamut_df
 
 
-def grainger_assign_nodes (grainger_df, gamut_df, node):
-    """assign gamut node data to grainger columns"""
-    
-    att_list = []
-    
-    node_ID = gamut_df['Gamut_Node_ID'].unique()
-    cat_ID = gamut_df['Gamut_Category_ID'].unique()
-    cat_name = gamut_df['Gamut_Category_Name'].unique()
-    node_name = gamut_df['Gamut_Node_Name'].unique()
-    pim_path = gamut_df['Gamut_PIM_Path'].unique()
-
-    atts = grainger_df['Grainger_Attribute_Name'].unique()
-    att_list = [att for att in atts if att]
-    att_list = np.char.strip(att_list)
-
-    for att in att_list:
-        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_Node_ID'] = node_ID
-        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_Category_ID'] = cat_ID
-        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_Category_Name'] = cat_name
-        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_Node_Name'] = node_name
-        grainger_df.loc[grainger_df.Grainger_Attribute_Name == att, 'Gamut_PIM_Path'] = pim_path
-    
-    return grainger_df
-
-
-def gamut_assign_nodes (grainger_df, gamut_df):
-    """assign grainger node data to gamut columns"""
-    
-    att_list = []
-    
-    blue = grainger_df['STEP Blue Path'].unique()
-    seg_ID = grainger_df['Segment_ID'].unique()
-    seg_name = grainger_df['Segment_Name'].unique()
-    fam_ID = grainger_df['Family_ID'].unique()
-    fam_name = grainger_df['Family_Name'].unique()
-    cat_ID = grainger_df['Category_ID'].unique()
-    cat_name = grainger_df['Category_Name'].unique()
-    
-    atts = gamut_df['Gamut_Attribute_Name'].unique()
-    att_list = [att for att in atts if att]
-    att_list = np.char.strip(att_list)
-    
-    for att in att_list:
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Category_ID'] = cat_ID
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'STEP Blue Path'] = blue
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Segment_ID'] = seg_ID
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Segment_Name'] = seg_name
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Family_ID'] = fam_ID
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Family_Name'] = fam_name
-        gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Category_Name'] = cat_name
-
-    return gamut_df
-
-
 def split(df):
     """ split values into numerators + UOMs and create separate columns for each"""
     all_vals = pd.DataFrame()
@@ -171,33 +117,49 @@ def split(df):
     return all_vals
 
 
-def detect_UOMs(df):
-    """read in the latest copy of "UOM_data_sheet.csv" and compare against the 'String' column for potential UOMs"""
-
-    uom_df = pd.DataFrame()
-
-    url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/UOM_data_sheet.csv'
-
-    data_file = requests.get(url).content
-    uom_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
-
-    # create a list of UOMs to compare against our 'String' column
-#    uom_arr = uom_df['Abbreviation (exact)'].to_numpy()
-    uom_list = uom_df['Abbreviation (exact)'].to_list()
+def detect_UOMs(df, uom_df):
+#    res_df = uom_df[uom_df['uoms_in_group'].str.contains('mk')]
+    uom_df['uoms_in_group'] = uom_df.uoms_in_group.map(lambda x: [i.strip() for i in x.split(";")])
+    uom_df['count'] = uom_df.uoms_in_group.apply(len)
     
-    df['Potential UOMs'] = df['String'].apply(lambda x: ','.join([i for i in str(uom_list) if i in x]))
-    uomObj = df.apply(lambda x: True if x['Potential UOMs'] != "" else False , axis=1)
-    uom_count = len(uomObj[uomObj == True].index)
+    df['Unit of Measure Domain'] = ''
+    df['Unit of Measure Group Name'] = ''
+#    match_df = set(df['String']).intersection(set(uom_df['uoms_in_group']))    
+
+    for row in df.itertuples():
+        text_value = str(row.String)
+
+        if text_value != '':
+            print('text value = ', text_value)
+                             
+            temp_df = uom_df[uom_df['uoms_in_group'].str.contains(text_value)]
+            print('temp df = ', temp_df.info())
+
+            if temp_df.empty==False:
+                # recommend the most specific first based on number of uoms in each group
+                temp_df = temp_df.sort_values(by=['count'], ascending=[True])
+
+                unit_group_id = '; '.join(item for item in temp_df['unit_group_id'] if item)
+                unit_group_name = '; '.join(item for item in temp_df['unit_group_name'] if item)
+
+                df.at[row.Index,'Unit of Measure Domain'] = unit_group_id
+                df.at[row.Index, 'Unit of Measure Group Name'] = unit_group_name
+
+#        unit_group_id = temp_df['unit_group_id'].apply(lambda x: '; '.join([i for i in str(uom_list) if i in x]))
+    
+#    df['Potential UOMs'] = df['String'].apply(lambda x: ','.join([i for i in str(uom_list) if i in x]))
+#    uomObj = df.apply(lambda x: True if x['Potential UOMs'] != "" else False , axis=1)
+#    uom_count = len(uomObj[uomObj == True].index)
 
     return df
     
     
-def UOM_analyze(df):
+def UOM_analyze(df, uom_df):
     """use the split fields in grainger_df to analyze suitability for number conversion and included in summary df"""
 
     # create the numeric/string columns
     df = split(df)
-    df = detect_UOMs(df)
+    df = detect_UOMs(df, uom_df)
 
     atts = df['Grainger_Attribute_Name'].unique()
 
@@ -226,7 +188,7 @@ def UOM_analyze(df):
         exclude_percent = exclude_count/row_count*100
         
         # search for " to " in potential UOM values to detect range attributes
-        range_tag = ['to', ' to ']
+        range_tag = [' to ']
 #        rangeObj = temp_att.apply(lambda x: True if x['Potential UOMs'] in ' to ' else False , axis=1) 
         temp_att['range'] = temp_att['String'].apply(lambda x: ','.join([i for i in range_tag if i in x]))
         df['range'] = df['String'].apply(lambda x: ','.join([i for i in range_tag if i in x]))
@@ -258,7 +220,7 @@ def UOM_analyze(df):
     return df
 
 
-def grainger_process(grainger_df, grainger_sample, grainger_all, gamut_dict: Dict, k):
+def grainger_process(grainger_df, grainger_all, uom_df, gamut_dict: Dict, k):
     """create a list of grainger skus, run through through the gamut_skus query and pull gamut attribute data if skus are present
         concat both dataframs and join them on matching attribute names"""
     
@@ -273,7 +235,7 @@ def grainger_process(grainger_df, grainger_sample, grainger_all, gamut_dict: Dic
     grainger_sku_count = len(grainger_skus)
     print('grainger sku count = ', grainger_sku_count)
     
-    grainger_df = UOM_analyze(grainger_df)
+    grainger_df = UOM_analyze(grainger_df, uom_df)
 
     grainger_df = grainger_df.drop_duplicates(subset=['Category_ID', 'Grainger_Attr_ID'])  #group by Category_ID and attribute name and keep unique
     grainger_df['STEP Blue Path'] = grainger_df['Segment_Name'] + ' > ' + grainger_df['Family_Name'] + \
@@ -306,8 +268,8 @@ def grainger_process(grainger_df, grainger_sample, grainger_all, gamut_dict: Dic
                 node_name = node_name.pop()
                 print('node name = {} {}'.format(node, node_name))
                 #add correlating grainger and gamut data to opposite dataframes
-                grainger_df = grainger_assign_nodes(grainger_df, gamut_df, node)
-                gamut_df = gamut_assign_nodes(grainger_df, gamut_df)
+                grainger_df = q.grainger_assign_nodes(grainger_df, gamut_df, node)
+                gamut_df = q.gamut_assign_nodes(grainger_df, gamut_df)
  
                 skus = gamut_skus[gamut_skus['Gamut_Node_ID'] == node]
                 temp_df = pd.merge(grainger_df, gamut_df, left_on=['alt_grainger_name', 'Category_ID', 'Gamut_Node_ID', 'Gamut_Category_ID', \
@@ -344,13 +306,12 @@ def grainger_process(grainger_df, grainger_sample, grainger_all, gamut_dict: Dic
 def attribute_process(grainger_df, node):
     attribute_df = pd.DataFrame()
     grainger_att_vals = pd.DataFrame()
-    grainger_sample_vals = pd.DataFrame()
 #    grainger_fill_rates = pd.DataFrame()
     gamut_dict = dict()
 
     grainger_att_vals = q.grainger_values(grainger_df)
 
-    temp_df, gamut_dict = grainger_process(grainger_df, grainger_sample_vals, grainger_att_vals, gamut_dict, k)
+    temp_df, gamut_dict = grainger_process(grainger_df, grainger_att_vals, uom_df, gamut_dict, k)
     attribute_df = pd.concat([attribute_df, temp_df], axis=0, sort=False)
     print ('Grainger node = ', node)
     
@@ -364,7 +325,7 @@ def attribute_process(grainger_df, node):
     return attribute_df
 
 
-def build_df(data_type, search_data):
+def build_df(data_type, search_data, uom_df):
     """this is the core set of instructions that builds the dataframes for export"""
     grainger_df = pd.DataFrame()
 
@@ -402,8 +363,12 @@ def build_df(data_type, search_data):
 
 
 #determine SKU or node search
+uom_df = pd.DataFrame()
+url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/UOM_data_sheet.csv'
 search_level = 'cat.CATEGORY_ID'
 
+data_file = requests.get(url).content
+uom_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
 
 data_type = fd.search_type()
 
@@ -414,14 +379,14 @@ if data_type == 'grainger_query':
         file_data = settings.get_files_in_directory()
         for file in file_data:
             search_data = [int(row[0]) for row in file_data[file][1:]]
-            df_upload =  build_df(data_type, search_data)
+            df_upload =  build_df(data_type, search_data, uom_df)
             fd.GWS_upload_data_out(settings.directory_name, df_upload, search_level)
             
     elif data_process == "two":
         search_data = fd.data_in(data_type, settings.directory_name)
 
         for k in search_data:
-            df_upload =  build_df(data_type, search_data)
+            df_upload =  build_df(data_type, search_data, uom_df)
             
             if df_upload.empty==False:
                 fd.GWS_upload_data_out(settings.directory_name, df_upload, search_level)
