@@ -11,15 +11,15 @@ import requests
 
 uom_df = pd.DataFrame()
 
-url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/UOM_data_sheet.csv'
-uom_list = list()
-uom_set = set()
+uom_groups_url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/UOM_goupings.csv'
+uom_list_url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/UOM_data_sheet.csv'
 
-data_file = requests.get(url).content
+
+data_file = requests.get(uom_groups_url).content
+groups_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
+
+data_file = requests.get(uom_list_url).content
 uom_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
 
-#uom_list = uom_df['uoms_in_group'].unique()
-for row in uom_df.itertuples():    
-    uom_list = uom_df['uoms_in_group'].str.split(';',expand=True)
-    print('ROW {} {}'.format(row, uom_list))
-#res_df = uom_df[uom_df['uoms_in_group'].str.contains('in.')]
+uom_list = uom_df['Abbreviation (exact)'].to_list()
+uom_set = set(uom_list)

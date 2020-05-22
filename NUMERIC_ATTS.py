@@ -363,9 +363,22 @@ def build_df(data_type, search_data, uom_df):
 
 
 #determine SKU or node search
-uom_df = pd.DataFrame()
-url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/UOM_data_sheet.csv'
 search_level = 'cat.CATEGORY_ID'
+
+# read in uom group file and uom list file
+uom_df = pd.DataFrame()
+
+uom_groups_url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/UOM_goupings.csv'
+uom_list_url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/UOM_data_sheet.csv'
+
+data_file = requests.get(uom_groups_url).content
+groups_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
+data_file = requests.get(uom_list_url).content
+uom_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
+
+uom_list = uom_df['Abbreviation (exact)'].to_list()
+uom_set = set(uom_list)
+
 
 data_file = requests.get(url).content
 uom_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
