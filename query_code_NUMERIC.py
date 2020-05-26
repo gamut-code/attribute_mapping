@@ -6,6 +6,9 @@ Created on Thu Sep 19 10:10:23 2019
 """
 
 import pandas as pd
+import requests
+import io
+import numpy as np
 from GWS_query import GWSQuery
 from grainger_query import GraingerQuery
 from queries_NUMERIC import gamut_basic_query, grainger_attr_query, grainger_basic_query
@@ -174,3 +177,19 @@ def gamut_assign_nodes (grainger_df, gamut_df):
         gamut_df.loc[gamut_df['Gamut_Attribute_Name'] == att, 'Category_Name'] = cat_name
 
     return gamut_df
+
+def lov_values():
+    """read and process the LOV file to build an LOV list"""
+    lov_groups_url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/LOV_list.csv'
+
+    # create df of LOVs
+    data_file = requests.get(lov_groups_url).content
+    df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
+
+#    lov_df = pd.DataFrame(df.groupby(['AttributeID', 'LOVID'])['Count'].sum())
+#    lov_df = lov_df.reset_index()
+
+    lovs = df['AttributeID'].tolist()
+    lov_list = set(lovs) 
+
+    return lov_list

@@ -117,33 +117,47 @@ def split(df):
     return all_vals
 
 
-def detect_UOMs(df, uom_df):
-#    res_df = uom_df[uom_df['uoms_in_group'].str.contains('mk')]
-    uom_df['uoms_in_group'] = uom_df.uoms_in_group.map(lambda x: [i.strip() for i in x.split(";")])
-    uom_df['count'] = uom_df.uoms_in_group.apply(len)
+def UOMs_LOVs(df, uom_df, uom_list, lov_list):
+#    res_df = uom_df[uom_df['uoms_in_group'].str.contains('mk')] 
     
+    df['Potential UOMs'] = ''
     df['Unit of Measure Domain'] = ''
     df['Unit of Measure Group Name'] = ''
+    df['Restricted Attribute Value Domain'] = 'N'
+
 #    match_df = set(df['String']).intersection(set(uom_df['uoms_in_group']))    
 
     for row in df.itertuples():
-        text_value = str(row.String)
+#        text_value = str(row.String)
+        
+        text_value = df.at[row.Index,'String']
+        text_value = str(text_value)
+
+        attr_id = df.at[row.Index,'Grainger_Attr_ID']
+        attr_id = str(attr_id) + '_ATTR'
+
+        if attr_id in lov_list:
+            df.at[row.Index,'Restricted Attribute Value Domain'] = 'Y'
 
         if text_value != '':
             print('text value = ', text_value)
-                             
-            temp_df = uom_df[uom_df['uoms_in_group'].str.contains(text_value)]
-            print('temp df = ', temp_df.info())
+            contained = [x for x in uom_list if x in text_value.split()]
+#            temp_df = uom_df[uom_df['uoms_in_group'].str.contains(text_value)]
+#            print('temp df = ', temp_df.info())
+            print('contained =', contained)
 
-            if temp_df.empty==False:
+            if contained != "":
+                df.at[row.Index,'Potential UOMs'] = contained
+                    
+#            if temp_df.empty==False:
                 # recommend the most specific first based on number of uoms in each group
-                temp_df = temp_df.sort_values(by=['count'], ascending=[True])
+#                temp_df = temp_df.sort_values(by=['count'], ascending=[True])
 
-                unit_group_id = '; '.join(item for item in temp_df['unit_group_id'] if item)
-                unit_group_name = '; '.join(item for item in temp_df['unit_group_name'] if item)
+#                unit_group_id = '; '.join(item for item in temp_df['unit_group_id'] if item)
+#                unit_group_name = '; '.join(item for item in temp_df['unit_group_name'] if item)
 
-                df.at[row.Index,'Unit of Measure Domain'] = unit_group_id
-                df.at[row.Index, 'Unit of Measure Group Name'] = unit_group_name
+#                df.at[row.Index,'Unit of Measure Domain'] = unit_group_id
+#                df.at[row.Index, 'Unit of Measure Group Name'] = unit_group_name
 
 #        unit_group_id = temp_df['unit_group_id'].apply(lambda x: '; '.join([i for i in str(uom_list) if i in x]))
     
@@ -154,18 +168,17 @@ def detect_UOMs(df, uom_df):
     return df
     
     
-def UOM_analyze(df, uom_df):
+def analyze(df, uom_df, uom_list, lov_list):
     """use the split fields in grainger_df to analyze suitability for number conversion and included in summary df"""
 
     # create the numeric/string columns
     df = split(df)
-    df = detect_UOMs(df, uom_df)
+    df = UOMs_LOVs(df, uom_df, uom_list, lov_list)
 
     atts = df['Grainger_Attribute_Name'].unique()
 
     df['%_Numeric'] = ''
     df['Data Type'] = ''
-    df['Potential UOMs'] = ''
     
     for attribute in atts:
         temp_att = df.loc[df['Grainger_Attribute_Name']== attribute]
@@ -216,11 +229,11 @@ def UOM_analyze(df, uom_df):
             df.loc[df['Grainger_Attribute_Name'] == attribute, 'Data Type'] = 'number'
         
     df['%_Numeric'] = df['%_Numeric'].map('{:,.2f}'.format)
-    df.to_csv('F:\CGabriel\Grainger_Shorties\OUTPUT\outfile.csv')
+    df.to_csv('F:\CGabriel\Grainger_Shorties\OUTPUT\moist.csv')
     return df
 
 
-def grainger_process(grainger_df, grainger_all, uom_df, gamut_dict: Dict, k):
+def grainger_process(grainger_df, grainger_all, uom_df, uom_list, lov_list, gamut_dict: Dict, k):
     """create a list of grainger skus, run through through the gamut_skus query and pull gamut attribute data if skus are present
         concat both dataframs and join them on matching attribute names"""
     
@@ -235,18 +248,14 @@ def grainger_process(grainger_df, grainger_all, uom_df, gamut_dict: Dict, k):
     grainger_sku_count = len(grainger_skus)
     print('grainger sku count = ', grainger_sku_count)
     
-    grainger_df = UOM_analyze(grainger_df, uom_df)
+    grainger_df = analyze(grainger_df, uom_df, uom_list, lov_list)
 
     grainger_df = grainger_df.drop_duplicates(subset=['Category_ID', 'Grainger_Attr_ID'])  #group by Category_ID and attribute name and keep unique
     grainger_df['STEP Blue Path'] = grainger_df['Segment_Name'] + ' > ' + grainger_df['Family_Name'] + \
                                                         ' > ' + grainger_df['Category_Name']
 
-    grainger_df = grainger_df.drop(['Grainger_SKU', 'Grainger_Attribute_Value'], axis=1) #remove unneeded columns
-    
-#    grainger_df = pd.merge(grainger_df, grainger_sample, on=['Grainger_Attribute_Name'])
-    grainger_df = pd.merge(grainger_df, grainger_all, on=['Grainger_Attr_ID'])
-#    grainger_df = pd.merge(grainger_df, fill_rate, on=['Grainger_Attribute_Name'])
-    
+    grainger_df = grainger_df.drop(['Grainger_SKU', 'Grainger_Attribute_Value'], axis=1) #remove unneeded columns    
+    grainger_df = pd.merge(grainger_df, grainger_all, on=['Grainger_Attr_ID'])    
     grainger_df['alt_grainger_name'] = process.process_att(grainger_df['Grainger_Attribute_Name'])  #prep att name for merge
 
     gamut_skus = q.gamut_skus(grainger_skus) #get gamut sku list to determine pim nodes to pull
@@ -303,20 +312,20 @@ def grainger_process(grainger_df, grainger_all, uom_df, gamut_dict: Dict, k):
 
     return df, gamut_dict #where gamut_att_temp is the list of all normalized values for gamut attributes
 
-def attribute_process(grainger_df, node):
+def attribute_process(grainger_df, uom_df, uom_list, lov_list, node):
     attribute_df = pd.DataFrame()
     grainger_att_vals = pd.DataFrame()
-#    grainger_fill_rates = pd.DataFrame()
     gamut_dict = dict()
 
     grainger_att_vals = q.grainger_values(grainger_df)
 
-    temp_df, gamut_dict = grainger_process(grainger_df, grainger_att_vals, uom_df, gamut_dict, k)
+    temp_df, gamut_dict = grainger_process(grainger_df, grainger_att_vals, uom_df, uom_list, lov_list, gamut_dict, k)
     attribute_df = pd.concat([attribute_df, temp_df], axis=0, sort=False)
     print ('Grainger node = ', node)
     
     attribute_df = attribute_df.drop(['Count', 'alt_grainger_name', 'Gamut_Node_ID', 'Gamut_Category_ID', \
                 'Gamut_Category_Name', 'Gamut_Node_Name', 'Gamut_PIM_Path'], axis=1)        
+        
     attribute_df = attribute_df.rename(columns={'Segment_ID':'Segment ID', 'Segment_Name':'Segment Name', \
                 'Family_ID':'Family ID', 'Family_Name':'Family Name', 'Category_ID':'Category ID', \
                 'Category_Name':'Category Name', 'Grainger_Attr_ID':'Attribute_ID', \
@@ -325,7 +334,7 @@ def attribute_process(grainger_df, node):
     return attribute_df
 
 
-def build_df(data_type, search_data, uom_df):
+def build_df(data_type, search_data, uom_df, uom_list, lov_list):
     """this is the core set of instructions that builds the dataframes for export"""
     grainger_df = pd.DataFrame()
 
@@ -338,7 +347,7 @@ def build_df(data_type, search_data, uom_df):
                 grainger_df = q.gcom.grainger_q(grainger_attr_query, search_level, k)
 
                 if grainger_df.empty == False:
-                    df_upload = attribute_process(grainger_df, k)
+                    df_upload = attribute_process(grainger_df, uom_df, uom_list, lov_list, k)
                 else:
                     print('No attribute data')
         else:
@@ -352,7 +361,7 @@ def build_df(data_type, search_data, uom_df):
                     grainger_df = q.gcom.grainger_q(grainger_attr_query, 'cat.CATEGORY_ID', j)
 
                     if grainger_df.empty == False:
-                        df_upload = attribute_process(grainger_df, j)
+                        df_upload = attribute_process(grainger_df, uom_df, uom_list, lov_list, j)
                     else:
                         print('No attribute data')
                 print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
@@ -365,23 +374,24 @@ def build_df(data_type, search_data, uom_df):
 #determine SKU or node search
 search_level = 'cat.CATEGORY_ID'
 
-# read in uom group file and uom list file
+# read in uom group file, LOV file, and uom list file
 uom_df = pd.DataFrame()
 
 uom_groups_url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/UOM_goupings.csv'
 uom_list_url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/UOM_data_sheet.csv'
 
+# create df of the uom groupings (ID and UOMs for each group)
 data_file = requests.get(uom_groups_url).content
-groups_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
+uom_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
+
+# read in the list of UOMs and convert them into a set of unique for comparisons
 data_file = requests.get(uom_list_url).content
-uom_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
+uom_temp = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
+uom_list = uom_temp['Abbreviation (exact)'].to_list()
+uom_list = set(uom_list)
 
-uom_list = uom_df['Abbreviation (exact)'].to_list()
-uom_set = set(uom_list)
-
-
-data_file = requests.get(url).content
-uom_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
+# read in the LOV list
+lov_list = q.lov_values()
 
 data_type = fd.search_type()
 
@@ -392,14 +402,14 @@ if data_type == 'grainger_query':
         file_data = settings.get_files_in_directory()
         for file in file_data:
             search_data = [int(row[0]) for row in file_data[file][1:]]
-            df_upload =  build_df(data_type, search_data, uom_df)
+            df_upload =  build_df(data_type, search_data, uom_df, uom_list, lov_list)
             fd.GWS_upload_data_out(settings.directory_name, df_upload, search_level)
             
     elif data_process == "two":
         search_data = fd.data_in(data_type, settings.directory_name)
 
         for k in search_data:
-            df_upload =  build_df(data_type, search_data, uom_df)
+            df_upload =  build_df(data_type, search_data, uom_df, uom_list, lov_list)
             
             if df_upload.empty==False:
                 fd.GWS_upload_data_out(settings.directory_name, df_upload, search_level)
