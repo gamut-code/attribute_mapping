@@ -99,7 +99,7 @@
 78,spm,Strokes per Minute
 146,ppm/1 msec,Sweep Speed
 192,lb/in; N/mm; oz/in,Tape Tensile Strength
-1,° C; ° F; mK; °C; °F;  Degrees F,Temperature
+1,° C; ° F; mK; °C; °F;  Degrees,Temperature
 106,° C/W; ° F/W,Thermal Resistivity
 158,day; hr; min; mo; sec; wk; yr; days; hr.; mo.; wk.; yr.,Time - General
 159,1/MHz; min; msec; nsec; sec; ns,Time - precise
