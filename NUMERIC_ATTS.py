@@ -119,57 +119,56 @@ def split(df):
 
 def UOMs_LOVs(df, uom_df, uom_list, lov_list):
 #    res_df = uom_df[uom_df['uoms_in_group'].str.contains('mk')] 
+    unit_df = pd.DataFrame()
     
     df['Potential UOMs'] = ''
     df['Unit of Measure Domain'] = ''
     df['Unit of Measure Group Name'] = ''
     df['Restricted Attribute Value Domain'] = 'N'
+    df['Numeric display type'] = ''
 
-#    match_df = set(df['String']).intersection(set(uom_df['uoms_in_group']))  
-#    regex = re.compile("(?=(" + "|".join(map(re.escape, uom_list)) + "))")
-    regex = re.compile(r'\b(?:%s)\b' % '|'.join(uom_list))
-#    uom_list = "|".join(str(i) for i in uom_list)
-#    regex = re.compile(uom_list, re.IGNORECASE)
-    print(regex)
     for row in df.itertuples():
-#        text_value = str(row.String)
-        
-        text_value = df.at[row.Index,'String']
-        text_value = str(text_value)
-
+        # first, compare the 'Grainger_Attr_ID' column against our list of LOVs
         attr_id = df.at[row.Index,'Grainger_Attr_ID']
         attr_id = str(attr_id) + '_ATTR'
-
+        
         if attr_id in lov_list:
             df.at[row.Index,'Restricted Attribute Value Domain'] = 'Y'
 
-        if text_value != '':
-#            print('text value = ', text_value)
-#            contained = [x for x in uom_list if x in text_value.split()]
-#            contained = re.findall(r"(?=(\b" + '\\b|\\b'.join(uom_list) + r"\b))", text_value)
-            contained = re.findall(regex, text_value)
-#            temp_df = uom_df[uom_df['uoms_in_group'].str.contains(text_value)]
-#            print('temp df = ', temp_df.info())
+        # then, for non text fields, run a search for potential UOM groups and categorize
+        val = df.at[row.Index,'Data Type']
 
-            df.at[row.Index,'Potential UOMs'] = contained
-  #          print('contained =', contained)
-                    
+        if val != 'text':
+            text_value = df.at[row.Index,'String']
+            text_value = str(text_value)
 
-#            if temp_df.empty==False:
-                # recommend the most specific first based on number of uoms in each group
-#                temp_df = temp_df.sort_values(by=['count'], ascending=[True])
+            if text_value != '':
+                potential = [x for x in uom_list if x in text_value.split()]
+                df.at[row.Index,'Potential UOMs'] = potential
 
-#                unit_group_id = '; '.join(item for item in temp_df['unit_group_id'] if item)
-#                unit_group_name = '; '.join(item for item in temp_df['unit_group_name'] if item)
+                if potential:
+                    print('potential = ', potential)
+                    for unit in potential:
+                        temp_df = uom_df[uom_df['uoms_in_group'].str.contains(unit)]
+                       # temp_df = uom_df.loc[uom_df['uoms_in_group'].isin([potential])]
+                        unit_df = pd.concat([unit_df, temp_df], axis=0, sort=False) #add prepped df for this gamut node to the final df
+                
+                if unit_df.empty == False:
+                    print('unit_df = ')
+                    print(unit_df.head())
+                    group_id = '; '.join(item for item in str(unit_df['unit_group_id']) if item)
+                    group_name = '; '.join(item for item in str(unit_df['unit_group_name']) if item)
 
-#                df.at[row.Index,'Unit of Measure Domain'] = unit_group_id
-#                df.at[row.Index, 'Unit of Measure Group Name'] = unit_group_name
-
-#        unit_group_id = temp_df['unit_group_id'].apply(lambda x: '; '.join([i for i in str(uom_list) if i in x]))
-    
-#    df['Potential UOMs'] = df['String'].apply(lambda x: ','.join([i for i in str(uom_list) if i in x]))
-#    uomObj = df.apply(lambda x: True if x['Potential UOMs'] != "" else False , axis=1)
-#    uom_count = len(uomObj[uomObj == True].index)
+                    df.at[row.Index,'Unit of Measure Domain'] = group_id
+                    df.at[row.Index, 'Unit of Measure Group Name'] = group_name
+            
+        # finally, determine whether numeric part of the value is a fraction or decimal
+        num = df.at[row.Index,'Numeric']
+        
+        if '.' in str(num):
+            df.at[row.Index,'Numeric display type'] = 'decimal'
+        elif '/' in str(num):
+            df.at[row.Index,'Numeric display type'] = 'fraction'
 
     return df
     
@@ -179,7 +178,6 @@ def analyze(df, uom_df, uom_list, lov_list):
 
     # create the numeric/string columns
     df = split(df)
-    df = UOMs_LOVs(df, uom_df, uom_list, lov_list)
 
     atts = df['Grainger_Attribute_Name'].unique()
 
@@ -235,6 +233,10 @@ def analyze(df, uom_df, uom_list, lov_list):
             df.loc[df['Grainger_Attribute_Name'] == attribute, 'Data Type'] = 'number'
         
     df['%_Numeric'] = df['%_Numeric'].map('{:,.2f}'.format)
+
+    # analyze df for LOV match and potential UOM groups
+    df = UOMs_LOVs(df, uom_df, uom_list, lov_list)
+
     df.to_csv('F:\CGabriel\Grainger_Shorties\OUTPUT\moist.csv')
     return df
 

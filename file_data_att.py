@@ -322,8 +322,9 @@ def GWS_upload_data_out(directory_name, df, search_level):
     columnTitles = ['STEP Blue Path', 'Segment ID', 'Segment Name', 'Family ID', 'Family Name', 'Category ID', \
                     'Category Name', 'Attribute_ID', 'Attribute Name', 'Definition', 'Grainger_Attribute_Definition', \
                     'Grainger_Category_Specific_Definition', 'Sample Values', 'Gamut_Attribute_Definition', \
-                    'Grainger ALL Values', 'alt_gamut_name', 'Gamut_Attr_ID', 'Gamut_Attribute_Name', \
-                    'Gamut Sample Values', 'Matching', 'Data Type', 'Numeric', 'String', 'Potential UOMs', '%_Numeric']
+                    'Grainger ALL Values', 'Matching', 'Data Type', 'Numeric', 'String', 'Potential UOMs', \
+                    'Unit of Measure Domain', 'Unit of Measure Group Name', '%_Numeric', \
+                    'Restricted Attribute Value Domain', 'Numeric display type']
 
     df = df.reindex(columns=columnTitles)
 
