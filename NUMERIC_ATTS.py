@@ -125,8 +125,12 @@ def UOMs_LOVs(df, uom_df, uom_list, lov_list):
     df['Unit of Measure Group Name'] = ''
     df['Restricted Attribute Value Domain'] = 'N'
 
-#    match_df = set(df['String']).intersection(set(uom_df['uoms_in_group']))    
-
+#    match_df = set(df['String']).intersection(set(uom_df['uoms_in_group']))  
+#    regex = re.compile("(?=(" + "|".join(map(re.escape, uom_list)) + "))")
+    regex = re.compile(r'\b(?:%s)\b' % '|'.join(uom_list))
+#    uom_list = "|".join(str(i) for i in uom_list)
+#    regex = re.compile(uom_list, re.IGNORECASE)
+    print(regex)
     for row in df.itertuples():
 #        text_value = str(row.String)
         
@@ -140,15 +144,17 @@ def UOMs_LOVs(df, uom_df, uom_list, lov_list):
             df.at[row.Index,'Restricted Attribute Value Domain'] = 'Y'
 
         if text_value != '':
-            print('text value = ', text_value)
-            contained = [x for x in uom_list if x in text_value.split()]
+#            print('text value = ', text_value)
+#            contained = [x for x in uom_list if x in text_value.split()]
+#            contained = re.findall(r"(?=(\b" + '\\b|\\b'.join(uom_list) + r"\b))", text_value)
+            contained = re.findall(regex, text_value)
 #            temp_df = uom_df[uom_df['uoms_in_group'].str.contains(text_value)]
 #            print('temp df = ', temp_df.info())
-            print('contained =', contained)
 
-            if contained != "":
-                df.at[row.Index,'Potential UOMs'] = contained
+            df.at[row.Index,'Potential UOMs'] = contained
+  #          print('contained =', contained)
                     
+
 #            if temp_df.empty==False:
                 # recommend the most specific first based on number of uoms in each group
 #                temp_df = temp_df.sort_values(by=['count'], ascending=[True])
