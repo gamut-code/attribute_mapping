@@ -116,53 +116,99 @@ def split(df):
 
     return all_vals
 
-
-def UOMs_LOVs(df, uom_df, uom_list, lov_list):
-#    res_df = uom_df[uom_df['uoms_in_group'].str.contains('mk')] 
-    unit_df = pd.DataFrame()
     
-    df['Potential UOMs'] = ''
-    df['Unit of Measure Domain'] = ''
-    df['Unit of Measure Group Name'] = ''
-    df['Restricted Attribute Value Domain'] = 'N'
-    df['Numeric display type'] = ''
+def get_data_type(df, attribute):
+    """using 'Numeric' and 'String' column values, determine which attributes are recommended as numeric, text, or range"""
+    row_count = len(df.index)
+
+    # Get a bool series representing positive 'Num' rows
+    seriesObj = df.apply(lambda x: True if x['Numeric'] != "" else False , axis=1) 
+    # Count number of True in series
+    num_count = len(seriesObj[seriesObj == True].index)
+    percent = num_count/row_count*100
+
+    # build a list of items that are exluded as potential UOM values
+    # if found, put values in a separate column used for evaluating 'Candidate' below
+    exclusions = ['NEF', 'NPT', 'NPS', 'UNEF', 'Steel']        
+    
+    df['exclude'] = df['String'].apply(lambda x: ','.join([i for i in exclusions if i in x]))
+#    df['exclude'] = df['String'].apply(lambda x: ','.join([i for i in exclusions if i in x]))
+    
+    excludeObj = df.apply(lambda x: True if x['exclude'] != "" else False , axis=1)
+    exclude_count = len(excludeObj[excludeObj == True].index)
+    exclude_percent = exclude_count/row_count*100
+
+    # search for " to " in potential UOM values to detect range attributes
+    range_tag = [' to ']
+
+    df['range'] = df['String'].apply(lambda x: ','.join([i for i in range_tag if i in x]))
+#    df['range'] = df['String'].apply(lambda x: ','.join([i for i in range_tag if i in x]))
+
+    rangeObj = df.apply(lambda x: True if x['range'] != "" else False , axis=1)
+    range_count = len(rangeObj[rangeObj == True].index)
+    range_percent = range_count/row_count*100
+        
+    df.loc[df['Grainger_Attr_ID'] == attribute, '%_Numeric'] = float(percent)
+    att_name = df['Grainger_Attribute_Name'].unique()
+        
+    if 'Thread Size' in att_name or 'Thread Depth' in att_name:
+        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'text'
+    elif 'Range' in att_name:
+        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'range attribute'
+    elif range_percent > 80:
+        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'range attribute'
+    elif range_percent > 0 and range_percent < 80:
+        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'potential number; contains {} range values'.format(range_count)
+    elif exclude_percent > 80:
+        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'text'        
+    elif percent < 80:
+        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'text'
+    elif percent >= 80 and percent < 100:           
+        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'potential number'
+    elif percent == 100:
+        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'number'
+        
+    df['%_Numeric'] = df['%_Numeric'].map('{:,.2f}'.format)
+
+    return df
+
+
+def match_lovs(df, lov_list, attribute):
+    """compare the 'Grainger_Attr_ID' column against our list of LOVs"""
+    attr_id = str(attribute) + '_ATTR'
+    
+    if attr_id in lov_list:
+        df['Restricted Attribute Value Domain'] = 'Y'
+
+    return df
+  
+    
+def determine_uoms(df, uom_df, uom_list):
+    """for all non 'text' data types, compare 'String' field to our UOM list, then compare these potential UOMs
+    to current GWS UOM groupings. finally, determine whether numeric part of the value is a fraction or decimal"""
+
+    unit_df = pd.DataFrame()
+    potential_list = list()
 
     for row in df.itertuples():
-        # first, compare the 'Grainger_Attr_ID' column against our list of LOVs
-        attr_id = df.at[row.Index,'Grainger_Attr_ID']
-        attr_id = str(attr_id) + '_ATTR'
-        
-        if attr_id in lov_list:
-            df.at[row.Index,'Restricted Attribute Value Domain'] = 'Y'
-
-        # then, for non text fields, run a search for potential UOM groups and categorize
+        # for non text fields, run a search for potential UOM groups and categorize
         val = df.at[row.Index,'Data Type']
 
         if val != 'text':
             text_value = df.at[row.Index,'String']
             text_value = str(text_value)
 
+            # if 'String' field contains value(s), compare to UOM list and assigned to 'Potential UOMs'
             if text_value != '':
-                potential = [x for x in uom_list if x in text_value.split()]
-                df.at[row.Index,'Potential UOMs'] = potential
+                pot_uom = [x for x in uom_list if x in text_value.split()]
+                df.at[row.Index,'Potential UOMs'] = pot_uom
 
-                if potential:
-                    print('potential = ', potential)
-                    for unit in potential:
-                        temp_df = uom_df[uom_df['uoms_in_group'].str.contains(unit)]
-                       # temp_df = uom_df.loc[uom_df['uoms_in_group'].isin([potential])]
-                        unit_df = pd.concat([unit_df, temp_df], axis=0, sort=False) #add prepped df for this gamut node to the final df
-                
-                if unit_df.empty == False:
-                    print('unit_df = ')
-                    print(unit_df.head())
-                    group_id = '; '.join(item for item in str(unit_df['unit_group_id']) if item)
-                    group_name = '; '.join(item for item in str(unit_df['unit_group_name']) if item)
+                # create list all unique potential UOMs for the attribute
+                if pot_uom:
+                    if pot_uom not in potential_list:
+                        potential_list.append(pot_uom)
 
-                    df.at[row.Index,'Unit of Measure Domain'] = group_id
-                    df.at[row.Index, 'Unit of Measure Group Name'] = group_name
-            
-        # finally, determine whether numeric part of the value is a fraction or decimal
+        # evaluate whether 'Numeric' value can be classified as decimal or fraction
         num = df.at[row.Index,'Numeric']
         
         if '.' in str(num):
@@ -170,75 +216,50 @@ def UOMs_LOVs(df, uom_df, uom_list, lov_list):
         elif '/' in str(num):
             df.at[row.Index,'Numeric display type'] = 'fraction'
 
+    for unit in potential_list:
+        print('unit =', unit)
+  HERE!!!      temp_uom = uom_df[uom_df["uoms_in_group"].str.contains(fr'\b{unit}\b', regex=True, case=False)]
+      PROBABLY NEED TO SPLIT INTO A LIST AND CYCLE THROUGH?
+      
+        unit_df = pd.concat([unit_df, temp_uom], axis=0, sort=False)
+
+        if unit_df.empty == False:
+            df['Unit of Measure Domain'] = '; '.join(item for item in str(unit_df['unit_group_id']) if item)
+            df['Unit of Measure Group Name'] = '; '.join(item for item in str(unit_df['unit_group_name']) if item)
+
+        print(unit_df.head(5))
     return df
-    
+
     
 def analyze(df, uom_df, uom_list, lov_list):
     """use the split fields in grainger_df to analyze suitability for number conversion and included in summary df"""
-
+    analyze_df = pd.DataFrame()
+    
     # create the numeric/string columns
     df = split(df)
 
-    atts = df['Grainger_Attribute_Name'].unique()
+    atts = df['Grainger_Attr_ID'].unique()
 
     df['%_Numeric'] = ''
     df['Data Type'] = ''
+    df['Potential UOMs'] = ''
+    df['Unit of Measure Domain'] = ''
+    df['Unit of Measure Group Name'] = ''
+    df['Restricted Attribute Value Domain'] = 'N'
+    df['Numeric display type'] = ''
     
     for attribute in atts:
-        temp_att = df.loc[df['Grainger_Attribute_Name']== attribute]
+        temp_df = df.loc[df['Grainger_Attr_ID']== attribute]
 
-        row_count = len(temp_att.index)
+        temp_df = get_data_type(temp_df, attribute)
+        temp_df = match_lovs(temp_df, lov_list, attribute)
+        temp_df = determine_uoms(temp_df, uom_df, uom_list)
 
-        # Get a bool series representing positive 'Num' rows
-        seriesObj = temp_att.apply(lambda x: True if x['Numeric'] != "" else False , axis=1) 
-        # Count number of True in series
-        num_count = len(seriesObj[seriesObj == True].index)
-        percent = num_count/row_count*100
-
-        # build a list of items that are exluded as potential UOM values
-        # if found, put values in a separate column used for evaluating 'Candidate' below
-        exclusions = ['NEF', 'NPT', 'NPS', 'UNEF', 'Steel']        
-        temp_att['exclude'] = temp_att['String'].apply(lambda x: ','.join([i for i in exclusions if i in x]))
-        df['exclude'] = df['String'].apply(lambda x: ','.join([i for i in exclusions if i in x]))
-        excludeObj = temp_att.apply(lambda x: True if x['exclude'] != "" else False , axis=1)
-        exclude_count = len(excludeObj[excludeObj == True].index)
-        exclude_percent = exclude_count/row_count*100
+        analyze_df = pd.concat([analyze_df, temp_df], axis=0, sort=False) #add prepped df for this gamut node to the final df
         
-        # search for " to " in potential UOM values to detect range attributes
-        range_tag = [' to ']
-#        rangeObj = temp_att.apply(lambda x: True if x['Potential UOMs'] in ' to ' else False , axis=1) 
-        temp_att['range'] = temp_att['String'].apply(lambda x: ','.join([i for i in range_tag if i in x]))
-        df['range'] = df['String'].apply(lambda x: ','.join([i for i in range_tag if i in x]))
-        rangeObj = temp_att.apply(lambda x: True if x['range'] != "" else False , axis=1)
-        range_count = len(rangeObj[rangeObj == True].index)
-        range_percent = range_count/row_count*100
-        
-        df.loc[df['Grainger_Attribute_Name'] == attribute, '%_Numeric'] = float(percent)
-        
-        if 'Thread Size' in attribute or 'Thread Depth' in attribute:
-            df.loc[df['Grainger_Attribute_Name'] == attribute, 'Data Type'] = 'text'
-        elif 'Range' in attribute:
-            df.loc[df['Grainger_Attribute_Name'] == attribute, 'Data Type'] = 'range attribute'
-        elif range_percent > 80:
-            df.loc[df['Grainger_Attribute_Name'] == attribute, 'Data Type'] = 'range attribute'
-        elif range_percent > 0 and range_percent < 80:
-            df.loc[df['Grainger_Attribute_Name'] == attribute, 'Data Type'] = 'potential number; contains {} range values'.format(range_count)
-        elif exclude_percent > 80:
-            df.loc[df['Grainger_Attribute_Name'] == attribute, 'Data Type'] = 'text'        
-        elif percent < 80:
-            df.loc[df['Grainger_Attribute_Name'] == attribute, 'Data Type'] = 'text'
-        elif percent >= 80 and percent < 100:           
-            df.loc[df['Grainger_Attribute_Name'] == attribute, 'Data Type'] = 'potential number'
-        elif percent == 100:
-            df.loc[df['Grainger_Attribute_Name'] == attribute, 'Data Type'] = 'number'
-        
-    df['%_Numeric'] = df['%_Numeric'].map('{:,.2f}'.format)
+    analyze_df.to_csv('F:\CGabriel\Grainger_Shorties\OUTPUT\moist.csv')
 
-    # analyze df for LOV match and potential UOM groups
-    df = UOMs_LOVs(df, uom_df, uom_list, lov_list)
-
-    df.to_csv('F:\CGabriel\Grainger_Shorties\OUTPUT\moist.csv')
-    return df
+    return analyze_df
 
 
 def grainger_process(grainger_df, grainger_all, uom_df, uom_list, lov_list, gamut_dict: Dict, k):
