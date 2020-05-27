@@ -91,7 +91,8 @@ def grainger_values(df):
         all_vals = pd.concat([all_vals, temp_df], axis=0)
 
     all_vals = all_vals[['Grainger_Attr_ID', 'Grainger ALL Values', 'Sample Values']]
-
+    all_vals = all_vals.drop_duplicates(subset=['Grainger_Attr_ID'])
+    
     return all_vals
 
 
@@ -119,6 +120,8 @@ def gamut_values(query, node, query_type):
             all_vals = pd.concat([all_vals, temp_df], axis=0)
 
         all_vals = all_vals[['Gamut_Attr_ID', 'Gamut Sample Values']]
+        all_vals = all_vals.drop_duplicates(subset=['Gamut_Attr_ID'])
+
     else:
         print('GWS node {} NO VALUES'.format(node))
         

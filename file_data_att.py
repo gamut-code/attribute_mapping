@@ -315,8 +315,9 @@ def GWS_upload_data_out(directory_name, df, search_level):
     columnTitles = ['STEP Blue Path', 'Segment ID', 'Segment Name', 'Family ID', 'Family Name', \
                 'Category ID', 'Category Name', 'Attribute_ID', 'Attribute Name', 'Definition', \
                 'Data Type', 'Multivalued?', 'Group', 'Group Type', 'Group Role', 'Group Parameter', \
-                'Restricted Attribute Value Domain', 'Unit of Measure Domain', 'Unit of Measure Group Name', \
-                'Potential UOMs', 'Sample Values', 'Numeric display type', 'Matching', 'Gamut Attribute Sample Values']
+                'Restricted Attribute Value Domain', 'Unit of Measure Domain', 'Sample Values', \
+                'Numeric display type', '%_Numeric', 'Potential UOMs', 'Unit of Measure Group Name', \
+                'Matching', 'Gamut Attribute Sample Values']
     
     """
     columnTitles = ['STEP Blue Path', 'Segment ID', 'Segment Name', 'Family ID', 'Family Name', 'Category ID', \
@@ -326,6 +327,7 @@ def GWS_upload_data_out(directory_name, df, search_level):
                     'Unit of Measure Domain', 'Unit of Measure Group Name', '%_Numeric', \
                     'Restricted Attribute Value Domain', 'Numeric display type']
     """
+
     df = df.reindex(columns=columnTitles)
 
     # Write each dataframe to a different worksheet.

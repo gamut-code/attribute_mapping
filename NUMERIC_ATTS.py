@@ -215,16 +215,18 @@ def determine_uoms(df, uom_df):
 
         # evaluate whether 'Numeric' value can be classified as decimal or fraction
         num = df.at[row.Index,'Numeric']
+        num = str(num)
         
-        if '.' in str(num):
-            df.at[row.Index,'Numeric display type'] = 'decimal'
-        elif '/' in str(num):
-            df.at[row.Index,'Numeric display type'] = 'fraction'
-
+        if num != '':
+            if '.' in num:
+                df.at[row.Index,'Numeric display type'] = 'decimal'
+            elif '/' in num:
+                df.at[row.Index,'Numeric display type'] = 'fraction'
+            else:
+                df.at[row.Index,'Numeric display type'] = 'decimal'
+                
     if potential_list:
         potential_list = set(potential_list)
-        print('potential list =', potential_list)
-#        unit_df = uom_df.loc[uom_df.index.isin(potential_list), : ]
 
         for unit in potential_list:
             temp_df = uom_df.loc[uom_df['unit_name']== unit]
@@ -235,12 +237,11 @@ def determine_uoms(df, uom_df):
     if unit_df.empty == False:
         uom_ids = unit_df['unit_group_id'].tolist()
         uom_ids = [ int(x) for x in uom_ids]
-        print('uom_ids = ', uom_ids)
         uom_names = unit_df['unit_group_name'].tolist()
 
     for row in df.itertuples():
         df.at[row.Index, 'Potential UOMs'] = potential_list
-        df.at[row.Index,'Unit of Measure Domain'] = [int(x) for x in uom_ids]
+        df.at[row.Index,'Unit of Measure Domain'] = uom_ids
         df.at[row.Index,'Unit of Measure Group Name'] = uom_names
         
     return df
@@ -333,21 +334,16 @@ def grainger_process(grainger_df, grainger_all, uom_df, lov_list, gamut_dict: Di
                                                           'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_Name'], how='outer')
 
                 temp_df = match_category(temp_df) #compare grainger and gamut atts and create column to say whether they match 
-   #             temp_df['grainger_sku_count'] = grainger_sku_count
-   #             temp_df['gamut_sku_count'] = len(skus)
-   #             temp_df['Grainger-Gamut Terminal Node Mapping'] = cat_name+' -- '+node_name
-   #             temp_df['Gamut/Grainger SKU Counts'] = temp_df['gamut_sku_count'].map(str)+' / '+temp_df['grainger_sku_count'].map(str)
 
                 df = pd.concat([df, temp_df], axis=0, sort=False) #add prepped df for this gamut node to the final df
                 df['Matching'] = df['Matching'].str.replace('no', 'Potential Match')
+
                 # drop all of the rows that are 'Gamut only' in the Match column
                 df = df[df.Matching != 'Gamut only']
 
             else:
                 print('GWS Node {} EMPTY DATAFRAME'.format(node))
     else:
-    #    grainger_df['Gamut/Grainger SKU Covunts'] = '0 / '+str(grainger_sku_count)
-    #    grainger_df['Grainger-Gamut Terminal Node Mapping'] = cat_name+' -- '
         df = grainger_df
         print('No Gamut SKUs for Grainger node {}'.format(k))
 
@@ -367,6 +363,8 @@ def attribute_process(grainger_df, uom_df, lov_list, node):
     temp_df, gamut_dict = grainger_process(grainger_df, grainger_att_vals, uom_df, lov_list, gamut_dict, k)
     attribute_df = pd.concat([attribute_df, temp_df], axis=0, sort=False)
     print ('Grainger node = ', node)
+
+    attribute_df = attribute_df.drop_duplicates(subset=['Grainger_Attr_ID'])
     
     attribute_df = attribute_df.drop(['Count', 'alt_grainger_name', 'Gamut_Node_ID', 'Gamut_Category_ID', \
                 'Gamut_Category_Name', 'Gamut_Node_Name', 'Gamut_PIM_Path'], axis=1)        
@@ -376,6 +374,8 @@ def attribute_process(grainger_df, uom_df, lov_list, node):
                 'Category_Name':'Category Name', 'Grainger_Attr_ID':'Attribute_ID', \
                 'Grainger_Attribute_Name':'Attribute Name'})
 
+    attribute_df['Multivalued?'] = 'Y'
+    
     return attribute_df
 
 
