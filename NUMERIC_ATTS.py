@@ -66,7 +66,7 @@ def choose_definition(df):
         elif process.isBlank(row.Gamut_Attribute_Definition) == False:
             df.at[row.Index,'Definition'] = gamut_def
             
-#    df = df.drop(['Grainger_Attribute_Definition', 'Grainger_Category_Specific_Definition', 'Gamut_Attribute_Definition'], axis=1) #remove unneeded columns
+    df = df.drop(['Grainger_Attribute_Definition', 'Grainger_Category_Specific_Definition', 'Gamut_Attribute_Definition'], axis=1) #remove unneeded columns
 
     return df
 
@@ -190,29 +190,28 @@ def determine_uoms(df, uom_df):
     unit_df = pd.DataFrame()
     potential_list = list()
     uom_list = list()
-    
+    uom_ids =  list()
+    uom_names = list()
+        
     # build unique UOM list for comparison
     uom_list = uom_df['unit_name'].tolist()
     uom_list = set(uom_list)
-    print(uom_list)
 
     for row in df.itertuples():
         # for non text fields, run a search for potential UOM groups and categorize
-        val = df.at[row.Index,'Data Type']
+        data_type = df.at[row.Index,'Data Type']
 
-        if val != 'text':
-            text_value = df.at[row.Index,'String']
-            text_value = str(text_value)
+        if data_type != 'text':
+            str_value = df.at[row.Index,'String']
+            str_value = str(str_value)
 
             # if 'String' field contains value(s), compare to UOM list and assigned to 'Potential UOMs'
-            if text_value != '':
-                pot_uom = [x for x in uom_list if x in text_value.split()]
-                df.at[row.Index,'Potential UOMs'] = pot_uom
-
-                # create list all unique potential UOMs for the attribute
+            if str_value != '':
+                pot_uom = [x for x in uom_list if x in str_value.split()]
+                
+                # create list of potential UOMs for the attribute
                 if pot_uom:
-                    if pot_uom not in potential_list:
-                        potential_list.append(pot_uom)
+                    potential_list.extend(pot_uom)
 
         # evaluate whether 'Numeric' value can be classified as decimal or fraction
         num = df.at[row.Index,'Numeric']
@@ -222,15 +221,28 @@ def determine_uoms(df, uom_df):
         elif '/' in str(num):
             df.at[row.Index,'Numeric display type'] = 'fraction'
 
-    for unit in potential_list:
-        print ('unit = ', unit)
-        temp_uom = uom_df.loc[uom_df['unit_name']== unit]
-        unit_df = pd.concat([unit_df, temp_uom], axis=0, sort=False)
+    if potential_list:
+        potential_list = set(potential_list)
+        print('potential list =', potential_list)
+#        unit_df = uom_df.loc[uom_df.index.isin(potential_list), : ]
 
-        if unit_df.empty == False:
-            df['Unit of Measure Domain'] = '; '.join(item for item in str(unit_df['unit_group_id']) if item)
-            df['Unit of Measure Group Name'] = '; '.join(item for item in str(unit_df['unit_group_name']) if item)
+        for unit in potential_list:
+            temp_df = uom_df.loc[uom_df['unit_name']== unit]
+            unit_df = pd.concat([unit_df, temp_df], axis=0)      
 
+    df = df.drop_duplicates(subset=['Category_ID', 'Grainger_Attr_ID'])  #group by Category_ID and attribute name and keep unique
+            
+    if unit_df.empty == False:
+        uom_ids = unit_df['unit_group_id'].tolist()
+        uom_ids = [ int(x) for x in uom_ids]
+        print('uom_ids = ', uom_ids)
+        uom_names = unit_df['unit_group_name'].tolist()
+
+    for row in df.itertuples():
+        df.at[row.Index, 'Potential UOMs'] = potential_list
+        df.at[row.Index,'Unit of Measure Domain'] = [int(x) for x in uom_ids]
+        df.at[row.Index,'Unit of Measure Group Name'] = uom_names
+        
     return df
 
     
@@ -260,7 +272,7 @@ def analyze(df, uom_df, lov_list):
 
         analyze_df = pd.concat([analyze_df, temp_df], axis=0, sort=False) #add prepped df for this gamut node to the final df
         
-    analyze_df.to_csv('F:\CGabriel\Grainger_Shorties\OUTPUT\moist.csv')
+#    analyze_df.to_csv('F:\CGabriel\Grainger_Shorties\OUTPUT\moist.csv')
 
     return analyze_df
 
