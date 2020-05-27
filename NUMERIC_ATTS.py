@@ -223,6 +223,7 @@ def determine_uoms(df, uom_df):
             df.at[row.Index,'Numeric display type'] = 'fraction'
 
     for unit in potential_list:
+        print ('unit = ', unit)
         temp_uom = uom_df.loc[uom_df['unit_name']== unit]
         unit_df = pd.concat([unit_df, temp_uom], axis=0, sort=False)
 
