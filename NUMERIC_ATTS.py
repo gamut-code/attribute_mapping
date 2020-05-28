@@ -111,6 +111,8 @@ def split(df):
             num = r.search(value)           
             temp_df.at[row.Index, 'Numeric'] = num.group()
 
+            temp_df['String'] = temp_df['String'].str.strip()
+
         all_vals = pd.concat([all_vals, temp_df], axis=0)
 
     return all_vals
@@ -195,6 +197,7 @@ def determine_uoms(df, uom_df, values_list):
     to current GWS UOM groupings. finally, determine whether numeric part of the value is a fraction or decimal"""
 
     unit_df = pd.DataFrame()
+    text_list = list()
     potential_list = list()
     uom_list = list()
     uom_ids =  list()
@@ -211,11 +214,20 @@ def determine_uoms(df, uom_df, values_list):
         if data_type != 'text':
             str_value = df.at[row.Index,'String']
             str_value = str(str_value)
-
+            # force 'String' content into a list so we can evaulate the entire string for a match against uom_list
+            text_list.append(str_value)
+            
             # if 'String' field contains value(s), compare to UOM list and assigned to 'Potential UOMs'
             if str_value != '':
-                pot_uom = [x for x in uom_list if x in str_value]
-                
+                # check for a match of the entire contant of 'String' against our uom_list
+                match = set(text_list).intersection(set(uom_list))
+
+                # but if we don't find an exact match, parse 'String' content and attempt to match up with uom_List
+                if not match:
+                    pot_uom = [x for x in uom_list if x in str_value.split()]
+                else:
+                    pot_uom = match
+                    
                 # create list of potential UOMs for the attribute
                 if pot_uom:
                     potential_list.extend(pot_uom)
@@ -224,13 +236,14 @@ def determine_uoms(df, uom_df, values_list):
         num = df.at[row.Index,'Numeric']
         num = str(num)
         
-        if num != '':
-            if '.' in num:
-                df.at[row.Index,'Numeric display type'] = 'decimal'
-            elif '/' in num:
-                df.at[row.Index,'Numeric display type'] = 'fraction'
-            else:
-                df.at[row.Index,'Numeric display type'] = 'decimal'
+        if data_type != 'text':
+            if num != '':
+                if '.' in num:
+                    df.at[row.Index,'Numeric display type'] = 'decimal'
+                elif '/' in num:
+                    df.at[row.Index,'Numeric display type'] = 'fraction'
+                else:
+                    df.at[row.Index,'Numeric display type'] = 'decimal'
                 
     if potential_list:
         potential_list = set(potential_list)
@@ -287,7 +300,7 @@ def analyze(df, uom_df, lov_df):
 
         analyze_df = pd.concat([analyze_df, temp_df], axis=0, sort=False) #add prepped df for this gamut node to the final df
         
-#    analyze_df.to_csv('F:\CGabriel\Grainger_Shorties\OUTPUT\moist.csv')
+    analyze_df.to_csv('F:\CGabriel\Grainger_Shorties\OUTPUT\moist.csv')
 
     return analyze_df
 
@@ -354,11 +367,15 @@ def grainger_process(grainger_df, grainger_all, uom_df, lov_df, gamut_dict: Dict
 
                 # drop all of the rows that are 'Gamut only' in the Match column
                 df = df[df.Matching != 'Gamut only']
+                
+                df = df.drop(['Count', 'alt_grainger_name', 'Gamut_Node_ID', 'Gamut_Category_ID', 'Gamut_Category_Name', \
+                              'Gamut_Node_Name', 'Gamut_PIM_Path'], axis=1)        
 
             else:
                 print('GWS Node {} EMPTY DATAFRAME'.format(node))
     else:
         df = grainger_df
+        df['Gamut_Attribute_Definition'] = ''
         print('No Gamut SKUs for Grainger node {}'.format(k))
 
     df.reset_index(drop=True, inplace=True)
@@ -374,15 +391,12 @@ def attribute_process(grainger_df, uom_df, lov_df, node):
 
     grainger_att_vals = q.grainger_values(grainger_df)
 
-    temp_df, gamut_dict = grainger_process(grainger_df, grainger_att_vals, uom_df, lov_df, gamut_dict, k)
+    temp_df, gamut_dict = grainger_process(grainger_df, grainger_att_vals, uom_df, lov_df, gamut_dict, node)
     attribute_df = pd.concat([attribute_df, temp_df], axis=0, sort=False)
     print ('Grainger node = ', node)
 
     attribute_df = attribute_df.drop_duplicates(subset=['Grainger_Attr_ID'])
-    
-    attribute_df = attribute_df.drop(['Count', 'alt_grainger_name', 'Gamut_Node_ID', 'Gamut_Category_ID', \
-                'Gamut_Category_Name', 'Gamut_Node_Name', 'Gamut_PIM_Path'], axis=1)        
-        
+            
     attribute_df = attribute_df.rename(columns={'Segment_ID':'Segment ID', 'Segment_Name':'Segment Name', \
                 'Family_ID':'Family ID', 'Family_Name':'Family Name', 'Category_ID':'Category ID', \
                 'Category_Name':'Category Name', 'Grainger_Attr_ID':'Attribute_ID', \
