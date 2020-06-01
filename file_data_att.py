@@ -125,7 +125,10 @@ def outfile_name (directory_name, quer, df, search_level, gamut='no'):
                 else:
                     outfile = Path(directory_name)/"{} {}.xlsx".format(df.iloc[0,6], quer) 
             elif quer == 'ATTRIBUTES':
-                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)
+                if search_level == 'cat.SEGMENT_ID':
+                    outfile = Path(directory_name)/"{} {} {}.xlsx".format(int(df.iloc[0,1]), df.iloc[0,2], quer)
+                else:
+                    outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)
             elif quer == 'ATTR':
                 outfile = Path(directory_name)/"{} {}.xlsx".format(df.iloc[0,3], quer)
             else:
@@ -317,44 +320,21 @@ def GWS_upload_data_out(directory_name, df, search_level):
                 'Data Type', 'Multivalued?', 'Group', 'Group Type', 'Group Role', 'Group Parameter', \
                 'Restricted Attribute Value Domain', 'Unit of Measure Domain', 'Sample Values', \
                 'Numeric display type', '%_Numeric', 'Potential UOMs', 'Unit of Measure Group Name', \
-                'Matching', 'Gamut Attribute Sample Values']
+                'Matching', 'Grainger ALL Values', 'Gamut Attribute Sample Values']
     
-    """
-    columnTitles = ['STEP Blue Path', 'Segment ID', 'Segment Name', 'Family ID', 'Family Name', 'Category ID', \
-                    'Category Name', 'Attribute_ID', 'Attribute Name', 'Definition', 'Grainger_Attribute_Definition', \
-                    'Grainger_Category_Specific_Definition', 'Sample Values', 'Gamut_Attribute_Definition', \
-                    'Grainger ALL Values', 'Matching', 'Data Type', 'Numeric', 'String', 'Potential UOMs', \
-                    'Unit of Measure Domain', 'Unit of Measure Group Name', '%_Numeric', \
-                    'Restricted Attribute Value Domain', 'Numeric display type']
-    """
-
     df = df.reindex(columns=columnTitles)
 
     # Write each dataframe to a different worksheet.
     df = df.sort_values(['Segment Name', 'Category Name', 'Attribute Name'], ascending=[True, True, True])
 
-    # define Candidate sort order
-#    sorter = ['Y', 'potential', 'N']
-    # dictionary that defines the order for sorting
-#    sorterIndex = dict(zip(sorter,range(len(sorter))))
-    # generate rank column to sort df
-#    df_summary['Can_Rank'] = df_summary['Candidate'].map(sorterIndex)
-
-#    df_summary.sort_values(['Category_Name', 'Can_Rank', 'Grainger_Attribute_Name'], \
-#                        ascending=[True, True, True], inplace = True)
-#    df_summary.drop('Can_Rank', 1, inplace=True)
     outfile = outfile_name (directory_name, quer, df, search_level)
     writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
    
     # Write each dataframe to a different worksheet.
-#    df_summary.to_excel(writer, sheet_name='Summary', startrow =1, startcol=0, index=False)
     df.to_excel(writer, sheet_name='Upload Data', index=False)
-#    df_stats.to_excel(writer, sheet_name='Data', startrow=1, startcol=0)
-#    df.to_excel(writer, sheet_name='Raw', index=False)
     
     # Get the xlsxwriter workbook and worksheet objects.
     workbook  = writer.book
-#    worksheet1 = writer.sheets['Summary']
     worksheet = writer.sheets['Upload Data']
   
     layout = workbook.add_format()

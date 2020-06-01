@@ -29,4 +29,4 @@ def get_files_in_directory():
     return file_data
 
 
-directory_name = "F:/CGabriel/Grainger_Shorties/OUTPUT"
+directory_name = 'F:\CGabriel\Grainger_Shorties\OUTPUT'

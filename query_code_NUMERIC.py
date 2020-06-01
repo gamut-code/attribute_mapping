@@ -6,8 +6,6 @@ Created on Thu Sep 19 10:10:23 2019
 """
 
 import pandas as pd
-import requests
-import io
 import numpy as np
 from GWS_query import GWSQuery
 from grainger_query import GraingerQuery

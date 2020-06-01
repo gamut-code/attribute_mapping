@@ -5,6 +5,7 @@ Created on Tue Mar  5 12:40:34 2019
 @author: xcxg109
 """
 import pandas as pd
+import numpy as np
 import requests
 import io
 import re
@@ -65,7 +66,8 @@ def choose_definition(df):
         elif process.isBlank(row.Gamut_Attribute_Definition) == False:
             df.at[row.Index,'Definition'] = gamut_def
             
-    df = df.drop(['Grainger_Attribute_Definition', 'Grainger_Category_Specific_Definition', 'Gamut_Attribute_Definition'], axis=1) #remove unneeded columns
+    if df.empty == False:
+        df = df.drop(['Grainger_Attribute_Definition', 'Grainger_Category_Specific_Definition', 'Gamut_Attribute_Definition'], axis=1) #remove unneeded columns
 
     return df
 
@@ -130,45 +132,51 @@ def get_data_type(df, attribute):
 
     # build a list of items that are exluded as potential UOM values
     # if found, put values in a separate column used for evaluating 'Candidate' below
-    exclusions = ['NEF', 'NPT', 'NPS', 'UNEF', 'Steel']        
+    value_exclusions = ['NEF', 'NPT', 'NPS', 'UNEF', 'Steel']        
     
-    df['exclude'] = df['String'].apply(lambda x: ','.join([i for i in exclusions if i in x]))
-#    df['exclude'] = df['String'].apply(lambda x: ','.join([i for i in exclusions if i in x]))
-    
+    df['exclude'] = df['String'].apply(lambda x: ','.join([i for i in value_exclusions if i in x]))    
     excludeObj = df.apply(lambda x: True if x['exclude'] != "" else False , axis=1)
     exclude_count = len(excludeObj[excludeObj == True].index)
     exclude_percent = exclude_count/row_count*100
 
     # search for " to " in potential UOM values to detect range attributes
-    range_tag = [' to ']
-
+    range_tag = [' to ', ' x ']
     df['range'] = df['String'].apply(lambda x: ','.join([i for i in range_tag if i in x]))
-#    df['range'] = df['String'].apply(lambda x: ','.join([i for i in range_tag if i in x]))
-
     rangeObj = df.apply(lambda x: True if x['range'] != "" else False , axis=1)
     range_count = len(rangeObj[rangeObj == True].index)
     range_percent = range_count/row_count*100
         
     df.loc[df['Grainger_Attr_ID'] == attribute, '%_Numeric'] = float(percent)
+ 
+    # build a list of attributes that should automatically be considered "text"
     att_name = df['Grainger_Attribute_Name'].unique()
-        
-    if 'Thread Size' in att_name or 'Thread Depth' in att_name:
-        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'text'
-    elif 'Range' in att_name:
-        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'range attribute'
-    elif range_percent > 80:
-        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'range attribute'
-    elif range_percent > 0 and range_percent < 80:
-        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'potential number; contains {} range values'.format(range_count)
-    elif exclude_percent > 80:
-        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'text'        
-    elif percent < 80:
-        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'text'
-    elif percent >= 80 and percent < 100:           
-        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'potential number'
-    elif percent == 100:
-        df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'number'
-        
+    att_name = att_name[0]
+
+    evaluated = 'n'
+    
+    name_exclusions = ['Thread Size', 'Thread Depth', 'Item', 'For Use With', 'Connection', 'Material', 'Type']
+#    exc = any(att_name in x for x in name_exclusions)
+    for name in name_exclusions:
+        if name in att_name:
+            evaluated = 'y'
+            df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'text'
+
+    if evaluated == 'n':
+        if 'Range' in att_name:
+            df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'multi-valued attribute'
+        elif exclude_percent > 80:
+            df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'text'        
+        elif percent < 80:
+            df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'text'
+        elif range_percent > 70:
+            df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'multi-valued attribute'
+        elif percent >= 80 and percent < 100:           
+            df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'potential number'
+        elif percent == 100:
+            df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'number'
+        elif range_percent > 0 and range_percent < 70:
+            df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'potential number; contains {} multi-valued attributes'.format(range_count)
+
     df['%_Numeric'] = df['%_Numeric'].map('{:,.2f}'.format)
 
     return df
@@ -198,11 +206,23 @@ def determine_uoms(df, uom_df, values_list):
 
     unit_df = pd.DataFrame()
     text_list = list()
+    text_list_lower = list()
+    name_list = list()
+    name_list_lower = list()
     potential_list = list()
+    best_potential_list = list()
+    second_pot_list = list()
+    match_name_list = list()
+    second_pot_name_list = list()
     uom_list = list()
     uom_ids =  list()
     uom_names = list()
-        
+    matched_ids = list()
+    intersect_list = list()
+    unit_names = list()
+    uom_dict = dict()
+    final_list = list()
+
     # build unique UOM list for comparison
     uom_list = uom_df['unit_name'].tolist()
     uom_list = set(uom_list)
@@ -212,25 +232,72 @@ def determine_uoms(df, uom_df, values_list):
         data_type = df.at[row.Index,'Data Type']
 
         if data_type != 'text':
+            # evaluate the text portion of attribute value field
             str_value = df.at[row.Index,'String']
             str_value = str(str_value)
+            str_value = str_value.replace('to',' ')
+            str_value = str_value.replace('-',' ')
+
+            if ' x ' in str_value:
+                str_value = str_value.replace(' x ',' ')
+                str_value = str_value.replace(' L', ' ')
+                str_value = str_value.replace(' H', ' ')
+                str_value = str_value.replace(' W', ' ')
+            str_value_lower = str_value.lower()
+            
             # force 'String' content into a list so we can evaulate the entire string for a match against uom_list
             text_list.append(str_value)
+            text_list_lower.append(str_value_lower)
             
             # if 'String' field contains value(s), compare to UOM list and assigned to 'Potential UOMs'
             if str_value != '':
                 # check for a match of the entire contant of 'String' against our uom_list
                 match = set(text_list).intersection(set(uom_list))
-
                 # but if we don't find an exact match, parse 'String' content and attempt to match up with uom_List
+
+                if not match:
+                    match = set(text_list_lower).intersection(set(uom_list))
+                    
                 if not match:
                     pot_uom = [x for x in uom_list if x in str_value.split()]
-                else:
-                    pot_uom = match
-                    
+                    # if parse by word match still fails, try one more time at a more granular level for a match                    
+
+                    if not pot_uom:
+                        pot_uom = [x for x in uom_list if x in str_value_lower.split()]
+                        
                 # create list of potential UOMs for the attribute
-                if pot_uom:
-                    potential_list.extend(pot_uom)
+                if match:
+                    best_potential_list.extend(match)
+                elif pot_uom:
+                    second_pot_list.extend(pot_uom)
+
+            # consider attribute name field as a sourse of potential uoms also
+            # evalulate lower case versions of attribute names also, to look for matches like "PSI"
+            name_value = df.at[row.Index, 'Grainger_Attribute_Name']
+            name_value = str(name_value)
+            name_value = name_value.replace('to','')
+            
+            name_value_lower = name_value.lower()
+
+            name_list.append(name_value)
+            name_list_lower.append(name_value_lower)
+
+            name_match = set(name_list).intersection(set(uom_list))
+            
+            if not name_match:
+                name_match = set(name_list_lower).intersection(set(uom_list))
+
+            if not name_match:
+                pot_name_uom = [x for x in uom_list if x in name_value.split()]
+
+                if not pot_name_uom:
+                    pot_name_uom = [x for x in uom_list if x in name_value_lower.split()]
+
+            # create list of potential UOMs for the attribute
+            if name_match:
+                match_name_list.extend(name_match)
+            elif pot_name_uom:
+                second_pot_name_list.extend(pot_name_uom)
 
         # evaluate whether 'Numeric' value can be classified as decimal or fraction
         num = df.at[row.Index,'Numeric']
@@ -245,18 +312,66 @@ def determine_uoms(df, uom_df, values_list):
                 else:
                     df.at[row.Index,'Numeric display type'] = 'decimal'
                 
-    if potential_list:
-        potential_list = set(potential_list)
-
-        for unit in potential_list:
+    if best_potential_list:
+        potential_list = set(best_potential_list)
+    elif second_pot_list:
+        potential_list = set(second_pot_list)
+    elif match_name_list:
+        potential_list = set(match_name_list)
+    elif second_pot_name_list:
+        potential_list = set(second_pot_name_list)
+            
+    for unit in potential_list:
+        if len(potential_list) > 1:
             temp_df = uom_df.loc[uom_df['unit_name']== unit]
-            unit_df = pd.concat([unit_df, temp_df], axis=0)      
+  #          temp_df['%_UOM_Match'] = ''
+            
+            # create a pool of all ids that contain the specific UOM
+            matched_ids = temp_df['unit_group_id'].tolist()                
+            matched_ids = [int(x) for x in matched_ids if ~np.isnan(x)]
+
+            for match in matched_ids:
+                temp_uom =   uom_df.loc[uom_df['unit_group_id']== match]
+                unit_names = temp_uom['unit_name'].tolist()
+                intersect_list = set(potential_list).intersection(set(unit_names))
+                match_percent = len(intersect_list)/len(potential_list)*100
+                match_percent = round(match_percent, 2)
+                # create dictionary entry for each matched uom + match percentage 
+                
+                if match not in uom_dict:
+                    uom_dict[match] = match_percent
+                        
+            temp_df = temp_df[['unit_group_id', 'unit_group_name', 'unit_name']]
+            unit_df = pd.concat([unit_df, temp_df], axis=0)
+
+        else:
+            unit_df = uom_df.loc[uom_df['unit_name'] == unit]
 
     df = df.drop_duplicates(subset=['Category_ID', 'Grainger_Attr_ID'])  #group by Category_ID and attribute name and keep unique
             
     if unit_df.empty == False:
+        unit_df = unit_df.drop_duplicates(subset=['unit_group_id'])  #group by Category_ID and attribute name and keep unique
+
+        dict_display = ''
+        
+        if uom_dict:
+            final_list = [[k,v] for k, v in uom_dict.items()]
+            # sort the output by highest matching percentages
+            final_list = sorted(final_list,key = lambda l:l[1], reverse=True)
+            
+            dict_display = '  '.join([str(value) for value in final_list])
+            dict_display = dict_display.replace(",", ":")
+
+        # create list of the sorted uom_ids from final list to use in sorting the df
+        sorter = [i[0] for i in final_list]
+        # create dictionary that defines the order for sorting
+        sorterIndex = dict(zip(sorter,range(len(sorter))))    
+        unit_df['id_rank'] = unit_df['unit_group_id'].map(sorterIndex)
+        unit_df.sort_values(['id_rank'], ascending = [True], inplace = True)
+
         uom_ids = unit_df['unit_group_id'].tolist()
-        uom_ids = [ int(x) for x in uom_ids]
+        uom_ids = [int(x) for x in uom_ids if ~np.isnan(x)]
+
         uom_names = unit_df['unit_group_name'].tolist()
 
     for row in df.itertuples():
@@ -268,9 +383,16 @@ def determine_uoms(df, uom_df, values_list):
             df.at[row.Index, 'Potential UOMs'] = potential_list
 
         if uom_ids:
-            df.at[row.Index,'Unit of Measure Domain'] = uom_ids
+            if len(uom_ids) == 1:
+                single_id = uom_ids.pop()
+                df.at[row.Index,'Unit of Measure Domain'] = single_id
+            elif dict_display != '':
+                df.at[row.Index,'Unit of Measure Domain'] = dict_display
+            else:
+                df.at[row.Index,'Unit of Measure Domain'] = uom_ids
+                
             df.at[row.Index,'Unit of Measure Group Name'] = uom_names
-        
+
     return df
 
     
@@ -290,18 +412,17 @@ def analyze(df, uom_df, lov_df):
     df['Unit of Measure Group Name'] = ''
     df['Restricted Attribute Value Domain'] = 'N'
     df['Numeric display type'] = ''
+ #   df['%_UOM_Match'] = ''
     
     for attribute in atts:
         temp_df = df.loc[df['Grainger_Attr_ID']== attribute]
-
         temp_df = get_data_type(temp_df, attribute)
         values_list = match_lovs(lov_df, attribute)
         temp_df = determine_uoms(temp_df, uom_df, values_list)
 
         analyze_df = pd.concat([analyze_df, temp_df], axis=0, sort=False) #add prepped df for this gamut node to the final df
         
-    analyze_df.to_csv('F:\CGabriel\Grainger_Shorties\OUTPUT\moist.csv')
-
+#    analyze_df.to_csv('F:/CGabriel/Grainger_Shorties/OUTPUT/test.csv')
     return analyze_df
 
 
@@ -340,6 +461,7 @@ def grainger_process(grainger_df, grainger_all, uom_df, lov_df, gamut_dict: Dict
         for node in gamut_l3:
             if node in gamut_dict:
                 gamut_df = gamut_dict[node]
+                print ('node {} in gamut dict'.format(node))
             else:
                 gamut_dict, gamut_df = gamut_process(node, gamut_dict, k)
 
@@ -352,7 +474,6 @@ def grainger_process(grainger_df, grainger_all, uom_df, lov_df, gamut_dict: Dict
                 grainger_df = q.grainger_assign_nodes(grainger_df, gamut_df, node)
                 gamut_df = q.gamut_assign_nodes(grainger_df, gamut_df)
  
-                skus = gamut_skus[gamut_skus['Gamut_Node_ID'] == node]
                 temp_df = pd.merge(grainger_df, gamut_df, left_on=['alt_grainger_name', 'Category_ID', 'Gamut_Node_ID', 'Gamut_Category_ID', \
                                                                    'Gamut_Category_Name', 'Gamut_Node_Name', 'Gamut_PIM_Path', 'STEP Blue Path', \
                                                                    'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_Name'], 
@@ -407,12 +528,12 @@ def attribute_process(grainger_df, uom_df, lov_df, node):
     return attribute_df
 
 
-def build_df(data_type, search_data, uom_df, lov_df):
+def build_df(data_process, data_type, search_data, uom_df, lov_df):
     """this is the core set of instructions that builds the dataframes for export"""
     grainger_df = pd.DataFrame()
-
+    df_upload = pd.DataFrame()
+    
     start_time = time.time()
-    print('working...')
 
     if data_type == 'grainger_query':
         if search_level == 'cat.CATEGORY_ID':
@@ -423,6 +544,14 @@ def build_df(data_type, search_data, uom_df, lov_df):
                     df_upload = attribute_process(grainger_df, uom_df, lov_df, k)
                 else:
                     print('No attribute data')
+                    
+                if df_upload.empty==False:
+                    fd.GWS_upload_data_out(settings.directory_name, df_upload, search_level)
+                else:
+                    print('EMPTY DATAFRAME')
+                    
+                print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
+
         else:
             for k in search_data:
                 print('K = ', k)
@@ -434,12 +563,19 @@ def build_df(data_type, search_data, uom_df, lov_df):
                     grainger_df = q.gcom.grainger_q(grainger_attr_query, 'cat.CATEGORY_ID', j)
 
                     if grainger_df.empty == False:
-                        df_upload = attribute_process(grainger_df, uom_df, lov_df, j)
+                        temp_df = attribute_process(grainger_df, uom_df, lov_df, j)
+                        df_upload = pd.concat([df_upload, temp_df], axis=0, sort=False)
+
                     else:
                         print('No attribute data')
+                
+                if df_upload.empty==False:
+                    fd.GWS_upload_data_out(settings.directory_name, df_upload, search_level)
+                else:
+                    print('EMPTY DATAFRAME')                   
+
                 print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
 
-        print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
         
     return df_upload
 
@@ -463,6 +599,8 @@ lov_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
 
 data_type = fd.search_type()
 
+print('working...')
+
 if data_type == 'grainger_query':
     search_level, data_process = fd.blue_search_level()
 
@@ -470,16 +608,9 @@ if data_type == 'grainger_query':
         file_data = settings.get_files_in_directory()
         for file in file_data:
             search_data = [int(row[0]) for row in file_data[file][1:]]
-            df_upload =  build_df(data_type, search_data, uom_df, lov_df)
+            df_upload =  build_df(data_process, data_type, search_data, uom_df, lov_df)
             fd.GWS_upload_data_out(settings.directory_name, df_upload, search_level)
             
     elif data_process == "two":
         search_data = fd.data_in(data_type, settings.directory_name)
-
-        for k in search_data:
-            df_upload =  build_df(data_type, search_data, uom_df, lov_df)
-            
-            if df_upload.empty==False:
-                fd.GWS_upload_data_out(settings.directory_name, df_upload, search_level)
-            else:
-                print('EMPTY DATAFRAME')
+        df_upload =  build_df(data_process, data_type, search_data, uom_df, lov_df)
