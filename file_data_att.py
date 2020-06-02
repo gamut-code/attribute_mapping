@@ -126,7 +126,7 @@ def outfile_name (directory_name, quer, df, search_level, gamut='no'):
                     outfile = Path(directory_name)/"{} {}.xlsx".format(df.iloc[0,6], quer) 
             elif quer == 'ATTRIBUTES':
                 if search_level == 'cat.SEGMENT_ID':
-                    outfile = Path(directory_name)/"{} {} {}.xlsx".format(int(df.iloc[0,1]), df.iloc[0,2], quer)
+                    outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,1], df.iloc[0,2], quer)
                 else:
                     outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)
             elif quer == 'ATTR':

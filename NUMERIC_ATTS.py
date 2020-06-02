@@ -7,8 +7,10 @@ Created on Tue Mar  5 12:40:34 2019
 import pandas as pd
 import numpy as np
 import requests
+import string
 import io
 import re
+from collections import defaultdict
 from grainger_query import GraingerQuery
 from queries_NUMERIC import gamut_attr_query, grainger_attr_query, gamut_attr_values
 import data_process as process
@@ -212,26 +214,63 @@ def determine_uoms(df, uom_df, values_list):
     potential_list = list()
     best_potential_list = list()
     second_pot_list = list()
+    last_chance_list = list()
     match_name_list = list()
     second_pot_name_list = list()
     uom_list = list()
+    unit_group_name = list()
     uom_ids =  list()
-    uom_names = list()
     matched_ids = list()
     intersect_list = list()
     unit_names = list()
-    uom_dict = dict()
-    final_list = list()
-
+    uom_dict = defaultdict(dict)
+    att_list = list()
+    dict_list = list()
+    dict_names = list()
+    
+    
     # build unique UOM list for comparison
     uom_list = uom_df['unit_name'].tolist()
     uom_list = set(uom_list)
 
+    data_type = df['Data Type'].unique()
+    
+    if data_type != 'text':
+        # consider attribute name field as a sourse of potential uoms
+        # evalulate lower case versions of attribute names also, to look for matches like "PSI"
+        name_value = df['Grainger_Attribute_Name'].unique()
+        name_value = str(name_value)
+        name_value = name_value.replace('to','')
+
+        name_value_lower = name_value.lower()
+
+        name_list.append(name_value)
+        name_list_lower.append(name_value_lower)
+
+        name_match = set(name_list).intersection(set(uom_list))
+            
+        if not name_match:
+            name_match = set(name_list_lower).intersection(set(uom_list))
+
+        if not name_match:
+            pot_name_uom = [x for x in uom_list if x in name_value.split()]
+
+            if not pot_name_uom:
+                pot_name_uom = [x for x in uom_list if x in name_value_lower.split()]
+
+        # create list of potential UOMs for the attribute
+        if name_match:
+            match_name_list.extend(name_match)
+        elif pot_name_uom:
+            second_pot_name_list.extend(pot_name_uom)
+
+    # now search through rows of the df (NOTE: df passed here is only for a single attribute) and look at individual values
     for row in df.itertuples():
         # for non text fields, run a search for potential UOM groups and categorize
         data_type = df.at[row.Index,'Data Type']
 
         if data_type != 'text':
+
             # evaluate the text portion of attribute value field
             str_value = df.at[row.Index,'String']
             str_value = str(str_value)
@@ -243,6 +282,7 @@ def determine_uoms(df, uom_df, values_list):
                 str_value = str_value.replace(' L', ' ')
                 str_value = str_value.replace(' H', ' ')
                 str_value = str_value.replace(' W', ' ')
+
             str_value_lower = str_value.lower()
             
             # force 'String' content into a list so we can evaulate the entire string for a match against uom_list
@@ -264,46 +304,27 @@ def determine_uoms(df, uom_df, values_list):
 
                     if not pot_uom:
                         pot_uom = [x for x in uom_list if x in str_value_lower.split()]
-                        
+
+                    if not pot_uom:
+                        last_chance = [x for x in uom_list if x in str_value]
+
+                        if '"' in last_chance:
+                            last_chance = '"'
+                        else:
+                            last_chance = ''
+                            
                 # create list of potential UOMs for the attribute
                 if match:
                     best_potential_list.extend(match)
                 elif pot_uom:
                     second_pot_list.extend(pot_uom)
+                elif last_chance:
+                    last_chance_list.extend(last_chance)
 
-            # consider attribute name field as a sourse of potential uoms also
-            # evalulate lower case versions of attribute names also, to look for matches like "PSI"
-            name_value = df.at[row.Index, 'Grainger_Attribute_Name']
-            name_value = str(name_value)
-            name_value = name_value.replace('to','')
-            
-            name_value_lower = name_value.lower()
-
-            name_list.append(name_value)
-            name_list_lower.append(name_value_lower)
-
-            name_match = set(name_list).intersection(set(uom_list))
-            
-            if not name_match:
-                name_match = set(name_list_lower).intersection(set(uom_list))
-
-            if not name_match:
-                pot_name_uom = [x for x in uom_list if x in name_value.split()]
-
-                if not pot_name_uom:
-                    pot_name_uom = [x for x in uom_list if x in name_value_lower.split()]
-
-            # create list of potential UOMs for the attribute
-            if name_match:
-                match_name_list.extend(name_match)
-            elif pot_name_uom:
-                second_pot_name_list.extend(pot_name_uom)
-
-        # evaluate whether 'Numeric' value can be classified as decimal or fraction
-        num = df.at[row.Index,'Numeric']
-        num = str(num)
+            # evaluate whether 'Numeric' value can be classified as decimal or fraction
+            num = df.at[row.Index,'Numeric']
+            num = str(num)
         
-        if data_type != 'text':
             if num != '':
                 if '.' in num:
                     df.at[row.Index,'Numeric display type'] = 'decimal'
@@ -320,11 +341,12 @@ def determine_uoms(df, uom_df, values_list):
         potential_list = set(match_name_list)
     elif second_pot_name_list:
         potential_list = set(second_pot_name_list)
-            
+    elif last_chance_list:
+        potential_list = set(last_chance_list)
+        
     for unit in potential_list:
         if len(potential_list) > 1:
             temp_df = uom_df.loc[uom_df['unit_name']== unit]
-  #          temp_df['%_UOM_Match'] = ''
             
             # create a pool of all ids that contain the specific UOM
             matched_ids = temp_df['unit_group_id'].tolist()                
@@ -333,14 +355,18 @@ def determine_uoms(df, uom_df, values_list):
             for match in matched_ids:
                 temp_uom =   uom_df.loc[uom_df['unit_group_id']== match]
                 unit_names = temp_uom['unit_name'].tolist()
+                unit_group_name = temp_uom['unit_group_name'].tolist()
+                
                 intersect_list = set(potential_list).intersection(set(unit_names))
                 match_percent = len(intersect_list)/len(potential_list)*100
                 match_percent = round(match_percent, 2)
                 # create dictionary entry for each matched uom + match percentage 
                 
                 if match not in uom_dict:
-                    uom_dict[match] = match_percent
-                        
+#                    uom_dict[match] = match_percent
+                    uom_dict[match]['name'] = unit_group_name
+                    uom_dict[match]['percent'] = match_percent
+
             temp_df = temp_df[['unit_group_id', 'unit_group_name', 'unit_name']]
             unit_df = pd.concat([unit_df, temp_df], axis=0)
 
@@ -352,27 +378,46 @@ def determine_uoms(df, uom_df, values_list):
     if unit_df.empty == False:
         unit_df = unit_df.drop_duplicates(subset=['unit_group_id'])  #group by Category_ID and attribute name and keep unique
 
-        dict_display = ''
-        
-        if uom_dict:
-            final_list = [[k,v] for k, v in uom_dict.items()]
-            # sort the output by highest matching percentages
-            final_list = sorted(final_list,key = lambda l:l[1], reverse=True)
-            
-            dict_display = '  '.join([str(value) for value in final_list])
-            dict_display = dict_display.replace(",", ":")
-
-        # create list of the sorted uom_ids from final list to use in sorting the df
-        sorter = [i[0] for i in final_list]
-        # create dictionary that defines the order for sorting
-        sorterIndex = dict(zip(sorter,range(len(sorter))))    
-        unit_df['id_rank'] = unit_df['unit_group_id'].map(sorterIndex)
-        unit_df.sort_values(['id_rank'], ascending = [True], inplace = True)
-
         uom_ids = unit_df['unit_group_id'].tolist()
         uom_ids = [int(x) for x in uom_ids if ~np.isnan(x)]
 
-        uom_names = unit_df['unit_group_name'].tolist()
+        unit_group_name = unit_df['unit_group_name'].tolist()
+
+        if uom_ids:
+            # compare the attribute name to the unit_group_name to aid in choosing the best uom
+            name_match = set(name_list).intersection(set(unit_group_name))
+
+            if not name_match:
+                name_match = set(name_list_lower).intersection(set(unit_group_name))
+
+            if not name_match:
+                pot_name_uom = [x for x in uom_list if x in name_value.split()]
+
+                if not pot_name_uom:
+                    pot_name_uom = [x for x in uom_list if x in name_value_lower.split()]
+                        
+            # create list of potential UOMs for the attribute
+            if name_match:
+                match_name_list.extend(name_match)
+            elif pot_name_uom:
+                second_pot_name_list.extend(pot_name_uom)
+
+            if match_name_list:
+                att_list = set(match_name_list)
+            elif second_pot_name_list:
+                att_list = set(second_pot_name_list)
+
+        if uom_dict:
+            uom_sorted = sorted(uom_dict.items(), key=lambda item: int(item[1]['percent']), reverse=True)
+
+            for key, value in uom_sorted:
+                k = key
+                v = value['percent']
+                n = value['name']
+                element = '|' + str(k) + ' : ' + str(v) + '|'
+
+                dict_list.append(element)
+                dict_names.append(n)
 
     for row in df.itertuples():
         # if LOV and/or UOM lists are populated, write them to the df
@@ -386,13 +431,45 @@ def determine_uoms(df, uom_df, values_list):
             if len(uom_ids) == 1:
                 single_id = uom_ids.pop()
                 df.at[row.Index,'Unit of Measure Domain'] = single_id
-            elif dict_display != '':
-                df.at[row.Index,'Unit of Measure Domain'] = dict_display
+            
             else:
-                df.at[row.Index,'Unit of Measure Domain'] = uom_ids
-                
-            df.at[row.Index,'Unit of Measure Group Name'] = uom_names
+                if att_list:
+                    for name in att_list:
+                        name = name.translate(str.maketrans('', '', string.punctuation))
+                        name_list = name.split(' ')
 
+                        for n in name_list:
+                            matching = [d for d in dict_names if n in d]
+
+                            if matching:
+                                match = matching.pop()
+                                print('matching =  ', match)
+            
+                                entry = {k: v for k, v in uom_dict.items() if v['name'] == match}
+                                k = key
+                                v = value['percent']
+                                n = value['name']
+                                element = '|' + str(k) + ' : ' + str(v) + '|'
+
+                                if v == 100:
+                                    print ('n = {} : values = {}'.format(n, element))
+                                    df.at[row.Index,'Unit of Measure Group Name'] = n
+                                    df.at[row.Index,'Unit of Measure Domain'] = element
+
+                if df.at[row.Index,'Unit of Measure Domain'] == '':
+                    if dict_list:
+                        df.at[row.Index,'Unit of Measure Domain'] = dict_list
+            
+                    else:
+                        df.at[row.Index,'Unit of Measure Domain'] = uom_ids
+                        
+            if df.at[row.Index,'Unit of Measure Group Name'] == '':
+                if dict_names:
+                    df.at[row.Index,'Unit of Measure Group Name'] = dict_names
+
+                else:
+                    df.at[row.Index,'Unit of Measure Group Name'] = unit_group_name
+                    
     return df
 
     
@@ -550,7 +627,7 @@ def build_df(data_process, data_type, search_data, uom_df, lov_df):
                 else:
                     print('EMPTY DATAFRAME')
                     
-                print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
+                print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))
 
         else:
             for k in search_data:
@@ -571,10 +648,13 @@ def build_df(data_process, data_type, search_data, uom_df, lov_df):
                 
                 if df_upload.empty==False:
                     fd.GWS_upload_data_out(settings.directory_name, df_upload, search_level)
+                    outfile = 'F:\CGabriel\Grainger_Shorties\OUTPUT\backup_'+k
+                    # export to CSV as backup in case ExcelWriter fails
+                    df.to_csv(outfile)
                 else:
                     print('EMPTY DATAFRAME')                   
 
-                print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
+                print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))
 
         
     return df_upload
