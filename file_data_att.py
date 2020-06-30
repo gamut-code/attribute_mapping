@@ -9,6 +9,7 @@ import pandas as pd
 import settings
 import pandas.io.formats.excel
 import os
+import string
 
 
 def search_type():
@@ -320,7 +321,8 @@ def GWS_upload_data_out(directory_name, df, search_level):
                 'Data Type', 'Multivalued?', 'Group', 'Group Type', 'Group Role', 'Group Parameter', \
                 'Restricted Attribute Value Domain', 'Unit of Measure Domain', 'Sample Values', \
                 'Numeric display type', '%_Numeric', 'Potential UOMs', 'Unit of Measure Group Name', \
-                'Matching', 'Grainger ALL Values', 'Gamut Attribute Sample Values']
+                'Matching', 'Grainger ALL Values', 'Comma Separated Values', 'Gamut Top Attribute Values', \
+                'Gamut Sample Values']
     
     df = df.reindex(columns=columnTitles)
 
@@ -350,12 +352,26 @@ def GWS_upload_data_out(directory_name, df, search_level):
 
     col_widths = get_col_widths(df)
     col_widths = col_widths[1:]
-    
+
     for i, width in enumerate(col_widths):
         if width > 40:
             width = 40
         elif width < 10:
             width = 10
         worksheet.set_column(i, i, width)
+
+    highlight_cols = ['%_Numeric','Potential UOMs','Unit of Measure Group Name','Matching','Grainger ALL Values',\
+                      'Comma Separated Values','Gamut Top Attribute Values','Gamut Sample Values']
+    
+    # add blue highlight to 'helper' columns that will be deleted for import
+    color_format = workbook.add_format({'bg_color': 'add8e6'})
+    
+    for col in highlight_cols:
+        excel_col = int(df.columns.get_loc(col))
+        len_df = int(len(df.index) + 1)
+
+        # conditional formating to cover ALL cells, blank and populated
+        worksheet.conditional_format(1, excel_col, len_df, excel_col, {'type': 'blanks', 'format': color_format})
+        worksheet.conditional_format(1, excel_col, len_df, excel_col, {'type': 'no_blanks', 'format': color_format})
 
     writer.save()

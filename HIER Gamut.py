@@ -1,4 +1,4 @@
-oi1# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Created on Tue Apr 16 17:00:31 2019
 
@@ -8,9 +8,10 @@ Created on Tue Apr 16 17:00:31 2019
 import file_data_att as fd
 import settings
 import pandas as pd
-"""CODE TO SWITCH BETWEEN 1.5 SYSTEM AND GWS"""
-#from gamut_query_15 import GamutQuery_15
-from GWS_query import GWSQuery
+
+"""CODE TO SWITCH BETWEEN ORIGINAL FLAVOR GAMUT AND GWS"""
+from gamut_query import GamutQuery
+#from GWS_query import GWSQuery
 """ """
 from grainger_query import GraingerQuery
 from queries_PIM import gamut_hier_query, grainger_basic_query, \
@@ -20,8 +21,8 @@ import time
 
 
 """CODE TO SWITCH BETWEEN 1.5 SYSTEM AND GWS"""
-#gamut = GamutQuery_15()
-gamut = GWSQuery()
+gamut = GamutQuery()
+#gamut = GWSQuery()
 """ """
 gcom = GraingerQuery()
 
@@ -29,10 +30,12 @@ gcom = GraingerQuery()
 def gamut_data(grainger_df):
     sku_list = grainger_df['Grainger_SKU'].tolist()
     gamut_skus = ", ".join("'" + str(i) + "'" for i in sku_list)
-    """CODE TO SWITCH BETWEEN 1.5 SYSTEM AND GWS"""
-    #gamut_df = gamut.gamut_q15(gamut_hier_query, 'tprod."supplierSku"', gamut_skus)
-    gamut_df = gamut.gws_q(gamut_hier_query, 'tprod."supplierSku"', gamut_skus)
+    
+    """CODE TO SWITCH BETWEEN ORIGINAL FLAVOR GAMUT AND GWS"""
+    gamut_df = gamut.gamut_q(gamut_hier_query, 'tprod."supplierSku"', gamut_skus)
+#    gamut_df = gamut.gws_q(gamut_hier_query, 'tprod."supplierSku"', gamut_skus)
     """ """
+
     return gamut_df
 
 def grainger_data(gamut_df):
@@ -81,10 +84,12 @@ print('working...')
 
 if data_type == 'gamut_query':
     for k in search_data:
-        """CODE TO SWITCH BETWEEN 1.5 SYSTEM AND GWS"""
-        #temp_df = gamut.gamut_q15(gamut_hier_query, search_level, k)
-        temp_df = gamut.gws_q(gamut_hier_query, search_level, k)
+        
+        """CODE TO SWITCH BETWEEN ORIGINAL FLAVOR GAMUT AND GWS"""
+        temp_df = gamut.gamut_q(gamut_hier_query, search_level, k)
+#        temp_df = gamut.gws_q(gamut_hier_query, search_level, k)
         """ """
+
         gamut_df = pd.concat([gamut_df, temp_df], axis=0)
         if gamut_df.empty == False:
             grainger_df = grainger_data(gamut_df)

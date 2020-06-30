@@ -74,27 +74,6 @@ def choose_definition(df):
     return df
 
 
-def gamut_process(node, gamut_dict: Dict, k):
-    """if gamut node has not been previously processed (in gamut_dict), process and add it to the dictionary"""
-
-    gamut_df = q.gamut_atts(gamut_attr_query, node, 'tax.id')  #tprod."categoryId"')  #get gamut attribute values for each gamut_l3 node\
-
-    if gamut_df.empty==False:
-        gamut_att_vals = q.gamut_values(gamut_attr_values, node, 'tax.id') #gamut_values exports a list of --all-- normalized values and sample_values
-
-        if gamut_att_vals.empty==False:
-            gamut_df = pd.merge(gamut_df, gamut_att_vals, on=['Gamut_Attr_ID'])  #add top 5 normalized values to report
-
-        gamut_df = gamut_df.drop_duplicates(subset='Gamut_Attr_ID')  #gamut attribute IDs are unique, so no need to group by pim node before getting unique
-        gamut_df['alt_gamut_name'] = process.process_att(gamut_df['Gamut_Attribute_Name'])  #prep att name for merge
-        
-        gamut_dict[node] = gamut_df #store the processed df in dict for future reference 
-    else:
-        print('{} EMPTY DATAFRAME'.format(node))    
-        
-    return gamut_dict, gamut_df
-
-
 def split(df):
     """ split values into numerators + UOMs and create separate columns for each"""
     all_vals = pd.DataFrame()
@@ -154,24 +133,37 @@ def get_data_type(df, attribute):
     att_name = df['Grainger_Attribute_Name'].unique()
     att_name = att_name[0]
 
+    # if 'merchandising attribute' is present in definition, attribute is also considered text    
+    att_cat_def = df['Grainger_Category_Specific_Definition'].unique()
+    att_cat_def = att_cat_def[0]
+    att_cat_def = str(att_cat_def)
+    
+    att_def = df['Grainger_Attribute_Definition'].unique()
+    att_def = att_def[0]
+    att_def = str(att_def)
+    
     evaluated = 'n'
     
     name_exclusions = ['Thread Size', 'Thread Depth', 'Item', 'For Use With', 'Connection', 'Material', 'Type']
-#    exc = any(att_name in x for x in name_exclusions)
+    
+    # check against the exclusion list first and mark them as already processed if we get a hit
     for name in name_exclusions:
         if name in att_name:
             evaluated = 'y'
             df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'text'
 
+    # if no exclusions are hit, do the other checks
     if evaluated == 'n':
-        if 'Range' in att_name:
-            df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'multi-valued attribute'
+        if 'merchandising' in att_cat_def or 'merchandising' in att_def:
+            df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'merchandising attribute'                    
+        elif 'Range' in att_name:
+            df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'combination attribute'
         elif exclude_percent > 80:
             df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'text'        
         elif percent < 80:
             df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'text'
         elif range_percent > 70:
-            df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'multi-valued attribute'
+            df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'combination attribute'
         elif percent >= 80 and percent < 100:           
             df.loc[df['Grainger_Attr_ID'] == attribute, 'Data Type'] = 'potential number'
         elif percent == 100:
@@ -224,14 +216,20 @@ def determine_uoms(df, uom_df, values_list):
     intersect_list = list()
     unit_names = list()
     uom_dict = defaultdict(dict)
-    att_list = list()
     dict_list = list()
-    dict_names = list()
-    
+    all_uom_names = list()
+    dict_names = list()    
     
     # build unique UOM list for comparison
     uom_list = uom_df['unit_name'].tolist()
     uom_list = set(uom_list)
+
+    all_uom_names = uom_df['unit_group_name'].tolist()
+    
+    for i in range(len(all_uom_names)):
+        all_uom_names[i] = all_uom_names[i].lower()
+
+    all_uom_names = set(all_uom_names)
 
     data_type = df['Data Type'].unique()
     
@@ -239,14 +237,18 @@ def determine_uoms(df, uom_df, values_list):
         # consider attribute name field as a sourse of potential uoms
         # evalulate lower case versions of attribute names also, to look for matches like "PSI"
         name_value = df['Grainger_Attribute_Name'].unique()
-        name_value = str(name_value)
+        name_value = name_value[0]
+        # remote "to" and punctuation before evaluating attribute names
         name_value = name_value.replace('to','')
+        name_value = name_value.replace('(','')
+        name_value = name_value.replace(')','')
+        name_value = name_value.replace('.','')
 
         name_value_lower = name_value.lower()
 
         name_list.append(name_value)
         name_list_lower.append(name_value_lower)
-
+        
         name_match = set(name_list).intersection(set(uom_list))
             
         if not name_match:
@@ -345,33 +347,29 @@ def determine_uoms(df, uom_df, values_list):
         potential_list = set(last_chance_list)
         
     for unit in potential_list:
-        if len(potential_list) > 1:
-            temp_df = uom_df.loc[uom_df['unit_name']== unit]
+        temp_df = uom_df.loc[uom_df['unit_name']== unit]
             
-            # create a pool of all ids that contain the specific UOM
-            matched_ids = temp_df['unit_group_id'].tolist()                
-            matched_ids = [int(x) for x in matched_ids if ~np.isnan(x)]
+        # create a pool of all ids that contain the specific UOM
+        matched_ids = temp_df['unit_group_id'].tolist()
+        matched_ids = [int(x) for x in matched_ids if ~np.isnan(x)]
 
-            for match in matched_ids:
-                temp_uom =   uom_df.loc[uom_df['unit_group_id']== match]
-                unit_names = temp_uom['unit_name'].tolist()
-                unit_group_name = temp_uom['unit_group_name'].tolist()
+        for match in matched_ids:
+            temp_uom =   uom_df.loc[uom_df['unit_group_id']== match]
+            unit_names = temp_uom['unit_name'].tolist()
+            unit_group_name = temp_uom['unit_group_name'].tolist()
+            unit_group_name = set(unit_group_name)
                 
-                intersect_list = set(potential_list).intersection(set(unit_names))
-                match_percent = len(intersect_list)/len(potential_list)*100
-                match_percent = round(match_percent, 2)
-                # create dictionary entry for each matched uom + match percentage 
-                
-                if match not in uom_dict:
-#                    uom_dict[match] = match_percent
-                    uom_dict[match]['name'] = unit_group_name
-                    uom_dict[match]['percent'] = match_percent
+            intersect_list = set(potential_list).intersection(set(unit_names))
+            match_percent = len(intersect_list)/len(potential_list)*100
+            match_percent = round(match_percent, 2)
 
-            temp_df = temp_df[['unit_group_id', 'unit_group_name', 'unit_name']]
-            unit_df = pd.concat([unit_df, temp_df], axis=0)
-
-        else:
-            unit_df = uom_df.loc[uom_df['unit_name'] == unit]
+            # create dictionary entry for each matched uom + match percentage                
+            if match not in uom_dict:
+                uom_dict[match]['name'] = unit_group_name
+                uom_dict[match]['percent'] = match_percent
+                    
+        temp_df = temp_df[['unit_group_id', 'unit_group_name', 'unit_name']]
+        unit_df = pd.concat([unit_df, temp_df], axis=0)
 
     df = df.drop_duplicates(subset=['Category_ID', 'Grainger_Attr_ID'])  #group by Category_ID and attribute name and keep unique
             
@@ -383,42 +381,25 @@ def determine_uoms(df, uom_df, values_list):
 
         unit_group_name = unit_df['unit_group_name'].tolist()
 
-        if uom_ids:
-            # compare the attribute name to the unit_group_name to aid in choosing the best uom
-            name_match = set(name_list).intersection(set(unit_group_name))
-
-            if not name_match:
-                name_match = set(name_list_lower).intersection(set(unit_group_name))
-
-            if not name_match:
-                pot_name_uom = [x for x in uom_list if x in name_value.split()]
-
-                if not pot_name_uom:
-                    pot_name_uom = [x for x in uom_list if x in name_value_lower.split()]
-                        
-            # create list of potential UOMs for the attribute
-            if name_match:
-                match_name_list.extend(name_match)
-            elif pot_name_uom:
-                second_pot_name_list.extend(pot_name_uom)
-
-            if match_name_list:
-                att_list = set(match_name_list)
-            elif second_pot_name_list:
-                att_list = set(second_pot_name_list)
-
         if uom_dict:
+            # sort the dict for highest matching potential
+            # if only one match = 100% that's what we'll use
             uom_sorted = sorted(uom_dict.items(), key=lambda item: int(item[1]['percent']), reverse=True)
 
             for key, value in uom_sorted:
-                k = key
-                v = value['percent']
-                n = value['name']
-                element = '|' + str(k) + ' : ' + str(v) + '|'
+                kA = key
+                vA = value['percent']
+                
+                nA = str(value['name'])
+                nA = nA.translate(str.maketrans('', '', string.punctuation))
+                nA = re.sub(' +', ' ', nA)                
+                elementA = '|' + str(kA) + ' : ' + str(vA) + '|'
 
-                dict_list.append(element)
-                dict_names.append(n)
-
+                dict_list.append(elementA)
+                dict_names.append(nA)
+            
+            dict_names = set(dict_names)
+                                        
     for row in df.itertuples():
         # if LOV and/or UOM lists are populated, write them to the df
         if values_list:
@@ -431,42 +412,41 @@ def determine_uoms(df, uom_df, values_list):
             if len(uom_ids) == 1:
                 single_id = uom_ids.pop()
                 df.at[row.Index,'Unit of Measure Domain'] = single_id
-            
+                
             else:
-                if att_list:
-                    for name in att_list:
-                        name = name.translate(str.maketrans('', '', string.punctuation))
-                        name_list = name.split(' ')
+                for name in name_list_lower:
+                    name = name.translate(str.maketrans('', '', string.punctuation))
+                    name = re.sub(' +', ' ', name)
+                    name_list = name.split(' ')
 
-                        for n in name_list:
-                            matching = [d for d in dict_names if n in d]
+                    for n in name_list:
+                        matching = [d for d in all_uom_names if n in d]
 
-                            if matching:
-                                match = matching.pop()
-                                print('matching =  ', match)
+                        if matching:
+                            match = matching.pop()
             
-                                entry = {k: v for k, v in uom_dict.items() if v['name'] == match}
-                                k = key
-                                v = value['percent']
-                                n = value['name']
-                                element = '|' + str(k) + ' : ' + str(v) + '|'
+                            entry = {k: v for k, v in uom_dict.items() if v['name'] == match}
 
-                                if v == 100:
-                                    print ('n = {} : values = {}'.format(n, element))
-                                    df.at[row.Index,'Unit of Measure Group Name'] = n
-                                    df.at[row.Index,'Unit of Measure Domain'] = element
+                            for dic in entry:
+                                dic_id = dic
+                                print('dic_id = ', dic_id)
+                                nB = uom_dict[dic_id]['name']
+                                vB = uom_dict[dic_id]['percent']
+                                elementB = '|' + str(dic) + ' : ' + str(vB) + '|'
+
+                                if vB == 100:
+                                    df.at[row.Index,'Unit of Measure Group Name'] = nB
+                                    df.at[row.Index,'Unit of Measure Domain'] = elementB
 
                 if df.at[row.Index,'Unit of Measure Domain'] == '':
                     if dict_list:
                         df.at[row.Index,'Unit of Measure Domain'] = dict_list
-            
                     else:
                         df.at[row.Index,'Unit of Measure Domain'] = uom_ids
                         
             if df.at[row.Index,'Unit of Measure Group Name'] == '':
                 if dict_names:
                     df.at[row.Index,'Unit of Measure Group Name'] = dict_names
-
                 else:
                     df.at[row.Index,'Unit of Measure Group Name'] = unit_group_name
                     
@@ -501,6 +481,28 @@ def analyze(df, uom_df, lov_df):
         
 #    analyze_df.to_csv('F:/CGabriel/Grainger_Shorties/OUTPUT/test.csv')
     return analyze_df
+
+
+def gamut_process(node, gamut_dict: Dict, k):
+    """if gamut node has not been previously processed (in gamut_dict), process and add it to the dictionary"""
+
+    gamut_df = q.gamut_atts(gamut_attr_query, node, 'tax.id')  #tprod."categoryId"')  #get gamut attribute values for each gamut_l3 node\
+
+    if gamut_df.empty==False:
+        gamut_att_vals = q.gamut_values(gamut_attr_values, node, 'tax.id') #gamut_values exports a list of --all-- normalized values and sample_values
+
+        if gamut_att_vals.empty==False:
+            gamut_df = pd.merge(gamut_df, gamut_att_vals, on=['Gamut_Attr_ID'])  #add top 5 normalized values to report
+
+        gamut_df = gamut_df.drop_duplicates(subset='Gamut_Attr_ID')  #gamut attribute IDs are unique, so no need to group by pim node before getting unique
+        gamut_df['alt_gamut_name'] = process.process_att(gamut_df['Gamut_Attribute_Name'])  #prep att name for merge
+
+        gamut_dict[node] = gamut_df #store the processed df in dict for future reference
+
+    else:
+        print('{} EMPTY DATAFRAME'.format(node))    
+        
+    return gamut_dict, gamut_df
 
 
 def grainger_process(grainger_df, grainger_all, uom_df, lov_df, gamut_dict: Dict, k):
@@ -539,6 +541,7 @@ def grainger_process(grainger_df, grainger_all, uom_df, lov_df, gamut_dict: Dict
             if node in gamut_dict:
                 gamut_df = gamut_dict[node]
                 print ('node {} in gamut dict'.format(node))
+                
             else:
                 gamut_dict, gamut_df = gamut_process(node, gamut_dict, k)
 
@@ -565,8 +568,8 @@ def grainger_process(grainger_df, grainger_all, uom_df, lov_df, gamut_dict: Dict
 
                 # drop all of the rows that are 'Gamut only' in the Match column
                 df = df[df.Matching != 'Gamut only']
-                
-                df = df.drop(['Count', 'alt_grainger_name', 'Gamut_Node_ID', 'Gamut_Category_ID', 'Gamut_Category_Name', \
+
+                df = df.drop(['alt_grainger_name', 'Gamut_Node_ID', 'Gamut_Category_ID', 'Gamut_Category_Name', \
                               'Gamut_Node_Name', 'Gamut_PIM_Path'], axis=1)        
 
             else:
@@ -582,33 +585,33 @@ def grainger_process(grainger_df, grainger_all, uom_df, lov_df, gamut_dict: Dict
     return df, gamut_dict #where gamut_att_temp is the list of all normalized values for gamut attributes
 
 
-def attribute_process(grainger_df, uom_df, lov_df, node):
+def attribute_process(grainger_df, uom_df, lov_df, gamut_dict : Dict, k):
     attribute_df = pd.DataFrame()
     grainger_att_vals = pd.DataFrame()
-    gamut_dict = dict()
 
     grainger_att_vals = q.grainger_values(grainger_df)
 
-    temp_df, gamut_dict = grainger_process(grainger_df, grainger_att_vals, uom_df, lov_df, gamut_dict, node)
+    temp_df, gamut_dict = grainger_process(grainger_df, grainger_att_vals, uom_df, lov_df, gamut_dict, k)
     attribute_df = pd.concat([attribute_df, temp_df], axis=0, sort=False)
-    print ('Grainger node = ', node)
+    print ('Grainger node = ', k)
 
     attribute_df = attribute_df.drop_duplicates(subset=['Grainger_Attr_ID'])
             
     attribute_df = attribute_df.rename(columns={'Segment_ID':'Segment ID', 'Segment_Name':'Segment Name', \
                 'Family_ID':'Family ID', 'Family_Name':'Family Name', 'Category_ID':'Category ID', \
                 'Category_Name':'Category Name', 'Grainger_Attr_ID':'Attribute_ID', \
-                'Grainger_Attribute_Name':'Attribute Name', 'Gamut Sample Values':'Gamut Attribute Sample Values'})
+                'Grainger_Attribute_Name':'Attribute Name', 'Gamut_Sample_Values' : 'Gamut Sample Values'})
 
     attribute_df['Multivalued?'] = 'Y'
     
-    return attribute_df
+    return attribute_df, gamut_dict
 
 
 def build_df(data_process, data_type, search_data, uom_df, lov_df):
     """this is the core set of instructions that builds the dataframes for export"""
     grainger_df = pd.DataFrame()
     df_upload = pd.DataFrame()
+    gamut_dict = dict()
     
     start_time = time.time()
 
@@ -618,7 +621,7 @@ def build_df(data_process, data_type, search_data, uom_df, lov_df):
                 grainger_df = q.gcom.grainger_q(grainger_attr_query, search_level, k)
 
                 if grainger_df.empty == False:
-                    df_upload = attribute_process(grainger_df, uom_df, lov_df, k)
+                    df_upload, gamut_dict = attribute_process(grainger_df, uom_df, lov_df, gamut_dict, k)
                 else:
                     print('No attribute data')
                     
@@ -640,7 +643,7 @@ def build_df(data_process, data_type, search_data, uom_df, lov_df):
                     grainger_df = q.gcom.grainger_q(grainger_attr_query, 'cat.CATEGORY_ID', j)
 
                     if grainger_df.empty == False:
-                        temp_df = attribute_process(grainger_df, uom_df, lov_df, j)
+                        temp_df, gamut_dict = attribute_process(grainger_df, uom_df, lov_df, gamut_dict, j)
                         df_upload = pd.concat([df_upload, temp_df], axis=0, sort=False)
 
                     else:
@@ -648,9 +651,10 @@ def build_df(data_process, data_type, search_data, uom_df, lov_df):
                 
                 if df_upload.empty==False:
                     fd.GWS_upload_data_out(settings.directory_name, df_upload, search_level)
+                    
                     outfile = 'F:\CGabriel\Grainger_Shorties\OUTPUT\backup_'+k
                     # export to CSV as backup in case ExcelWriter fails
-                    df.to_csv(outfile)
+                    df_upload.to_csv(outfile)
                 else:
                     print('EMPTY DATAFRAME')                   
 
@@ -667,15 +671,13 @@ search_level = 'cat.CATEGORY_ID'
 uom_df = pd.DataFrame()
 
 uom_groups_url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/UOM_data_sheet.csv'
-lov_groups_url = 'https://raw.githubusercontent.com/gamut-code/attribute_mapping/master/LOV_list.csv'
 
 # create df of the uom groupings (ID and UOMs for each group)
 data_file = requests.get(uom_groups_url).content
 uom_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
 
 # create df of the lovs and their concat values
-data_file = requests.get(lov_groups_url).content
-lov_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
+lov_df = q.get_LOVs()
 
 data_type = fd.search_type()
 

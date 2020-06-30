@@ -48,6 +48,7 @@ gamut_attr_query="""
         , tax_att.id as "Gamut_Attr_ID"
         , tax_att.name as "Gamut_Attribute_Name"
         , tax_att.description as "Gamut_Attribute_Definition"
+        , tax_att."sampleValues" AS "Gamut_Sample_Values"
    
     FROM  taxonomy_attribute tax_att
 

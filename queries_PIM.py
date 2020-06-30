@@ -92,6 +92,7 @@ gamut_attr_values="""
         , tax_att.description as "Gamut_Attribute_Definition"
         , tprodvalue.value as "Original Value"
         , tprodvalue."valueNormalized" as "Normalized Value"
+        , tax_att."unitGroupId" as "Unit_Group_ID"
    
     FROM  taxonomy_product tprod
 

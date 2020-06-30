@@ -160,6 +160,8 @@ def grainger_process(grainger_df, grainger_sample, grainger_all, fill_rate, gamu
         for node in gamut_l3:
             if node in gamut_dict:
                 gamut_df = gamut_dict[node]
+                print ('node {} in gamut dict'.format(node))
+
             else:
                 gamut_dict, gamut_df = gamut_process(node, gamut_dict, k)
 

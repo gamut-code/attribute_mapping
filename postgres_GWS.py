@@ -66,6 +66,7 @@ class PostgresDatabase_GWS:
 
     def _connect2postgres_(self, db):
         args = self._getcreds_()
+        # alternate GWS host to try!!! gac-rds-internal-readonly.graingercloud.com
         host = "gws-rds-internal-readonly.graingercloud.com"
         port = 5432
         engine = create_engine(
