@@ -287,12 +287,13 @@ def hier_data_out(directory_name, grainger_df, gamut_df, quer, search_level):
         outfile = outfile_name (directory_name, quer, grainger_df, search_level, gamut)
     else:
         outfile = outfile_name (directory_name, quer, grainger_df, search_level)
-
+    
     writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
+    writer = pd.ExcelWriter('F:\CGabriel\Grainger_Shorties\OUTPUT\moist.xlsx', engine='xlsxwriter')
       
-    grainger_df.to_excel (writer, sheet_name="Shorties", startrow=0, startcol=0, index=False)
+    grainger_df.to_excel (writer, sheet_name="Stats", startrow=0, startcol=0, index=False)
    
-    worksheet1 = writer.sheets['Shorties']
+    worksheet = writer.sheets['Stats']
     
     col_widths = get_col_widths(grainger_df)
     col_widths = col_widths[1:]
@@ -320,9 +321,9 @@ def GWS_upload_data_out(directory_name, df, search_level):
                 'Category ID', 'Category Name', 'Attribute_ID', 'Attribute Name', 'Definition', \
                 'Data Type', 'Multivalued?', 'Group', 'Group Type', 'Group Role', 'Group Parameter', \
                 'Restricted Attribute Value Domain', 'Unit of Measure Domain', 'Sample Values', \
-                'Numeric display type', '%_Numeric', 'Potential UOMs', 'Unit of Measure Group Name', \
-                'Matching', 'Grainger ALL Values', 'Comma Separated Values', 'Gamut Top Attribute Values', \
-                'Gamut Sample Values']
+                'Numeric display type', 'Recommended Data Type', '%_Numeric', 'Potential UOMs', 'String_Values', \
+                'Unit of Measure Group Name', 'Definition Source', 'Matching', 'Grainger ALL Values', \
+                'Comma Separated Values', 'Gamut Top Attribute Values', 'Gamut Sample Values']
     
     df = df.reindex(columns=columnTitles)
 
@@ -352,7 +353,7 @@ def GWS_upload_data_out(directory_name, df, search_level):
 
     col_widths = get_col_widths(df)
     col_widths = col_widths[1:]
-
+    
     for i, width in enumerate(col_widths):
         if width > 40:
             width = 40
@@ -360,8 +361,12 @@ def GWS_upload_data_out(directory_name, df, search_level):
             width = 10
         worksheet.set_column(i, i, width)
 
-    highlight_cols = ['%_Numeric','Potential UOMs','Unit of Measure Group Name','Matching','Grainger ALL Values',\
-                      'Comma Separated Values','Gamut Top Attribute Values','Gamut Sample Values']
+    worksheet.set_column('J:J', 40, layout)
+    worksheet.set_default_row(20)
+
+    highlight_cols = ['Recommended Data Type','%_Numeric','Potential UOMs','String_Values',\
+                        'Unit of Measure Group Name','Definition Source','Matching','Grainger ALL Values',\
+                        'Comma Separated Values','Gamut Top Attribute Values','Gamut Sample Values']
     
     # add blue highlight to 'helper' columns that will be deleted for import
     color_format = workbook.add_format({'bg_color': 'add8e6'})

@@ -46,22 +46,31 @@ test_q="""
           array_to_string(tax.ancestor_names || tax.name,' > ') as "Gamut_PIM_Path"
         , tax.ancestors[1] as "Gamut_Category_ID"  
         , tax.ancestor_names[1] as "Gamut_Category_Name"
-        , tax_att."categoryId" AS "Gamut_Node_ID"
+        , tprod."categoryId" AS "Gamut_Node_ID"
         , tax.name as "Gamut_Node_Name"
+        , tprod."gtPartNumber" as "Gamut_SKU"
+        , tprod."supplierSku" as "Grainger_SKU"
         , tax_att.id as "Gamut_Attr_ID"
         , tax_att.name as "Gamut_Attribute_Name"
         , tax_att.description as "Gamut_Attribute_Definition"
-        , tax_att."sampleValues" AS "Gamut_Sample_Values"
-        , tax_att."unitGroupId"
+        , tprodvalue.value as "Original Value"
+        , tprodvalue."valueNormalized" as "Normalized Value"
    
-    FROM  taxonomy_attribute tax_att
+    FROM  taxonomy_product tprod
 
     INNER JOIN tax
-        ON tax.id = tax_att."categoryId"
+        ON tax.id = tprod."categoryId"
+        --  AND (4458 = ANY(tax.ancestors)) --OR 8215 = ANY(tax.ancestors) OR 7739 = ANY(tax.ancestors))  -- *** ADD TOP LEVEL NODES HERE ***
+
+    INNER JOIN taxonomy_attribute tax_att
+        ON tax_att."categoryId" = tprod."categoryId"
+
+    INNER JOIN  taxonomy_product_attribute_value tprodvalue
+        ON tprod.id = tprodvalue."productId"
+        AND tax_att.id = tprodvalue."attributeId"
         
     WHERE {term} IN ({k})
-        """.format(term='tax_att."unitGroupId"', k=5)
-
+        """(term='tax_att."categoryId"', k=8786)
 
 gamut_df = db.query(test_q)
 

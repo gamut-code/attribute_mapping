@@ -5,19 +5,19 @@ Created on Fri Jul 12 12:56:37 2019
 @author: xcxg109
 """
 
-            
-gamut_basic_query="""
+
+gws_basic_query="""
     SELECT
-          tprod."gtPartNumber" as "Gamut_SKU"
-        , tprod."supplierSku" as "Grainger_SKU"
-        , tprod."categoryId" AS "Gamut_Node_ID"
+          tprod."gtPartNumber" as "GWS_SKU"
+        , tprod."gtPartNumber" as "Grainger_SKU"
+        , tprod."categoryId" AS "GWS_Node_ID"
         
     FROM taxonomy_product tprod
     
     WHERE {} IN ({})
 """
 
-gamut_attr_query="""
+gws_attr_query="""
         WITH RECURSIVE tax AS (
                 SELECT  id,
             name,
@@ -40,14 +40,14 @@ gamut_attr_query="""
             )
 
     SELECT
-          array_to_string(tax.ancestor_names || tax.name,' > ') as "Gamut_PIM_Path"
-        , tax.ancestors[1] as "Gamut_Category_ID"  
-        , tax.ancestor_names[1] as "Gamut_Category_Name"
-        , tax_att."categoryId" AS "Gamut_Node_ID"
-        , tax.name as "Gamut_Node_Name"
-        , tax_att.id as "Gamut_Attr_ID"
-        , tax_att.name as "Gamut_Attribute_Name"
-        , tax_att.description as "Gamut_Attribute_Definition"
+          array_to_string(tax.ancestor_names || tax.name,' > ') as "GWS_PIM_Path"
+        , tax.ancestors[1] as "GWS_Category_ID"  
+        , tax.ancestor_names[1] as "GWS_Category_Name"
+        , tax_att."categoryId" AS "GWS_Node_ID"
+        , tax.name as "GWS_Node_Name"
+        , tax_att.id as "GWS_Attr_ID"
+        , tax_att.name as "GWS_Attribute_Name"
+        , tax_att.description as "GWS_Attribute_Definition"
    
     FROM  taxonomy_attribute tax_att
 
@@ -57,7 +57,7 @@ gamut_attr_query="""
     WHERE {} IN ({})
         """
 
-gamut_attr_values="""
+gws_attr_values="""
         WITH RECURSIVE tax AS (
                 SELECT  id,
             name,
@@ -80,16 +80,16 @@ gamut_attr_values="""
             )
 
     SELECT
-          array_to_string(tax.ancestor_names || tax.name,' > ') as "Gamut_PIM_Path"
-        , tax.ancestors[1] as "Gamut_Category_ID"  
-        , tax.ancestor_names[1] as "Gamut_Category_Name"
-        , tprod."categoryId" AS "Gamut_Node_ID"
-        , tax.name as "Gamut_Node_Name"
-        , tprod."gtPartNumber" as "Gamut_SKU"
-        , tprod."supplierSku" as "Grainger_SKU"
-        , tax_att.id as "Gamut_Attr_ID"
-        , tax_att.name as "Gamut_Attribute_Name"
-        , tax_att.description as "Gamut_Attribute_Definition"
+          array_to_string(tax.ancestor_names || tax.name,' > ') as "GWS_PIM_Path"
+        , tax.ancestors[1] as "GWS_Category_ID"
+        , tax.ancestor_names[1] as "GWS_Category_Name"
+        , tprod."categoryId" AS "GWS_Node_ID"
+        , tax.name as "GWS_Node_Name"
+        , tprod."gtPartNumber" as "GWS_SKU"
+        , tprod."gtPartNumber" as "Grainger_SKU"
+        , tax_att.id as "GWS_Attr_ID"
+        , tax_att.name as "GWS_Attribute_Name"
+        , tax_att.description as "GWS_Attribute_Definition"
         , tprodvalue.value as "Original Value"
         , tprodvalue."valueNormalized" as "Normalized Value"
         , tax_att."unitGroupId" as "Unit_Group_ID"
@@ -112,7 +112,7 @@ gamut_attr_values="""
 
 
 #get basic SKU list and hierarchy data from Grainger teradata material universe
-gamut_hier_query="""
+gws_hier_query="""
             WITH RECURSIVE tax AS (
                 SELECT  id,
                         name,
@@ -135,10 +135,13 @@ gamut_hier_query="""
             )
 
             SELECT
-                tprod."gtPartNumber" as "Gamut_SKU"
-                , tprod."supplierSku" as "Grainger_SKU"
-                , array_to_string(tax.ancestor_names || tax.name,' > ') as "tax_path"
-                , tprod."categoryId" as "PIM Node ID"
+                array_to_string(tax.ancestor_names || tax.name,' > ') as "GWS_PIM_Path"
+                , tax.ancestors[1] as "GWS_Category_ID"
+                , tax.ancestor_names[1] as "GWS_Category_Name"
+                , tprod."categoryId" AS "GWS_Node_ID"
+                , tax.name as "GWS_Node_Name"
+                , tprod."gtPartNumber" as "GWS_SKU"
+                , tprod."gtPartNumber" as "Grainger_SKU"
 
             FROM taxonomy_product tprod
 
@@ -284,6 +287,162 @@ grainger_discontinued_query="""
 
             FULL OUTER JOIN PRD_DWH_VIEW_LMT.Yellow_Heir_Flattend_view AS flat
                 ON yellow.PROD_CLASS_ID = flat.Heir_End_Class_Code
+
+            WHERE {} IN ({})
+            """
+
+
+gamut_basic_query="""
+    SELECT
+          tprod."gtPartNumber" as "Gamut_SKU"
+        , tprod."supplierSku" as "Grainger_SKU"
+        , tprod."categoryId" AS "Gamut_Node_ID"
+        
+    FROM taxonomy_product tprod
+    
+    WHERE {} IN ({})
+"""
+
+
+gamut_attr_query="""
+        WITH RECURSIVE tax AS (
+                SELECT  id,
+            name,
+            ARRAY[]::INTEGER[] AS ancestors,
+            ARRAY[]::character varying[] AS ancestor_names
+                FROM    taxonomy_category as category
+                WHERE   "parentId" IS NULL
+                AND category.deleted = false
+
+                UNION ALL
+
+                SELECT  category.id,
+            category.name,
+            tax.ancestors || tax.id,
+            tax.ancestor_names || tax.name
+                FROM    taxonomy_category as category
+                INNER JOIN tax ON category."parentId" = tax.id
+                WHERE   category.deleted = false
+
+            )
+
+    SELECT
+          array_to_string(tax.ancestor_names || tax.name,' > ') as "Gamut_PIM_Path"
+        , tax.ancestors[1] as "Gamut_Category_ID"  
+        , tax.ancestor_names[1] as "Gamut_Category_Name"
+        , tax_att."categoryId" AS "Gamut_Node_ID"
+        , tax.name as "Gamut_Node_Name"
+        , tax_att.id as "Gamut_Attr_ID"
+        , tax_att.name as "Gamut_Attribute_Name"
+        , tax_att.description as "Gamut_Attribute_Definition"
+        , tax_att."unitGroupId" as "Unit_Group_ID"
+        , uom_kind.name as "UOM_Kind"
+        
+    FROM  taxonomy_attribute tax_att
+
+    INNER JOIN tax
+        ON tax.id = tax_att."categoryId"
+
+    INNER JOIN unit_group
+        ON unit_group.id = tax_att."unitGroupId"
+        
+    FULL OUTER JOIN uom_kind
+        ON uom_kind.id = unit_group."kindId"
+        
+    WHERE {} IN ({})
+        """
+
+
+gamut_attr_values="""
+        WITH RECURSIVE tax AS (
+                SELECT  id,
+            name,
+            ARRAY[]::INTEGER[] AS ancestors,
+            ARRAY[]::character varying[] AS ancestor_names
+                FROM    taxonomy_category as category
+                WHERE   "parentId" IS NULL
+                AND category.deleted = false
+
+                UNION ALL
+
+                SELECT  category.id,
+            category.name,
+            tax.ancestors || tax.id,
+            tax.ancestor_names || tax.name
+                FROM    taxonomy_category as category
+                INNER JOIN tax ON category."parentId" = tax.id
+                WHERE   category.deleted = false
+
+            )
+
+    SELECT
+          array_to_string(tax.ancestor_names || tax.name,' > ') as "Gamut_PIM_Path"
+        , tax.ancestors[1] as "Gamut_Category_ID"  
+        , tax.ancestor_names[1] as "Gamut_Category_Name"
+        , tprod."categoryId" AS "Gamut_Node_ID"
+        , tax.name as "Gamut_Node_Name"
+--        , tprod."gtPartNumber" as "Gamut_SKU"
+--        , tprod."supplierSku" as "Grainger_SKU"
+        , tax_att.id as "Gamut_Attr_ID"
+        , tax_att.name as "Gamut_Attribute_Name"
+        , tax_att.description as "Gamut_Attribute_Definition"
+--        , tprodvalue.value as "Original Value"
+--        , tprodvalue.unit as "Original Unit"
+--        , tprodvalue."valueNormalized" as "Normalized Value"
+        , tprodvalue."unitNormalized" As "Normalized Unit"
+--        , tax_att."unitGroupId" as "Unit_Group_ID"
+   
+    FROM  taxonomy_product tprod
+
+    INNER JOIN tax
+        ON tax.id = tprod."categoryId"
+        --  AND (4458 = ANY(tax.ancestors)) --OR 8215 = ANY(tax.ancestors) OR 7739 = ANY(tax.ancestors))  -- *** ADD TOP LEVEL NODES HERE ***
+
+    INNER JOIN taxonomy_attribute tax_att
+        ON tax_att."categoryId" = tprod."categoryId"
+
+    INNER JOIN  taxonomy_product_attribute_value tprodvalue
+        ON tprod.id = tprodvalue."productId"
+        AND tax_att.id = tprodvalue."attributeId"
+        
+    WHERE {} IN ({})
+        """
+
+
+#get basic SKU list and hierarchy data from Grainger teradata material universe
+gamut_hier_query="""
+            WITH RECURSIVE tax AS (
+                SELECT  id,
+                        name,
+                        ARRAY[]::INTEGER[] AS ancestors,
+                        ARRAY[]::character varying[] AS ancestor_names
+                    FROM    taxonomy_category as category
+                WHERE   "parentId" IS NULL
+                    AND category.deleted = false
+
+                UNION ALL
+
+                SELECT  category.id,
+            			category.name,
+                        tax.ancestors || category."parentId",
+                        tax.ancestor_names || parent_category.name
+                FROM taxonomy_category as category
+                JOIN tax on category."parentId" = tax.id
+                JOIN taxonomy_category parent_category on category."parentId" = parent_category.id
+                WHERE   category.deleted = false 
+            )
+
+            SELECT
+                tprod."gtPartNumber" as "Gamut_SKU"
+                , tprod."supplierSku" as "Grainger_SKU"
+                , array_to_string(tax.ancestor_names || tax.name,' > ') as "tax_path"
+                , tprod."categoryId" as "PIM Node ID"
+
+            FROM taxonomy_product tprod
+
+            INNER JOIN tax
+                ON tax.id = tprod."categoryId"
+                -- AND (10006 = ANY(tax.ancestors)) --OR 8215 = ANY(tax.ancestors) OR 7739 = ANY(tax.ancestors))  -- *** ADD TOP LEVEL NODES HERE ***
 
             WHERE {} IN ({})
             """

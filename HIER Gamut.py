@@ -10,8 +10,10 @@ import settings
 import pandas as pd
 
 """CODE TO SWITCH BETWEEN ORIGINAL FLAVOR GAMUT AND GWS"""
-from gamut_query import GamutQuery
+#from gamut_query import GamutQuery
 #from GWS_query import GWSQuery
+from GWS_TOOLBOX_query import GWSQuery
+
 """ """
 from grainger_query import GraingerQuery
 from queries_PIM import gamut_hier_query, grainger_basic_query, \
@@ -21,8 +23,8 @@ import time
 
 
 """CODE TO SWITCH BETWEEN 1.5 SYSTEM AND GWS"""
-gamut = GamutQuery()
-#gamut = GWSQuery()
+#gamut = GamutQuery()
+gamut = GWSQuery()
 """ """
 gcom = GraingerQuery()
 
@@ -32,14 +34,19 @@ def gamut_data(grainger_df):
     gamut_skus = ", ".join("'" + str(i) + "'" for i in sku_list)
     
     """CODE TO SWITCH BETWEEN ORIGINAL FLAVOR GAMUT AND GWS"""
-    gamut_df = gamut.gamut_q(gamut_hier_query, 'tprod."supplierSku"', gamut_skus)
-#    gamut_df = gamut.gws_q(gamut_hier_query, 'tprod."supplierSku"', gamut_skus)
+#    gamut_df = gamut.gamut_q(gamut_hier_query, 'tprod."supplierSku"', gamut_skus)
+    gamut_df = gamut.gws_q(gamut_hier_query, 'tprod."supplierProductId"', gamut_skus)
     """ """
 
     return gamut_df
 
 def grainger_data(gamut_df):
-    sku_list = gamut_df['supplierSku'].tolist()
+
+    """CODE TO SWITCH BETWEEN ORIGINAL FLAVOR GAMUT AND GWS"""
+#    sku_list = gamut_df['supplierSku'].tolist()
+    sku_list = gamut_df['supplierProductId'].tolist()
+    """ """
+
     grainger_skus = ", ".join("'" + str(i) + "'" for i in sku_list)
     grainger_df = gcom.grainger_q(grainger_basic_query, 'item.MATERIAL_NO', grainger_skus)
     return grainger_df
@@ -86,8 +93,8 @@ if data_type == 'gamut_query':
     for k in search_data:
         
         """CODE TO SWITCH BETWEEN ORIGINAL FLAVOR GAMUT AND GWS"""
-        temp_df = gamut.gamut_q(gamut_hier_query, search_level, k)
-#        temp_df = gamut.gws_q(gamut_hier_query, search_level, k)
+#        temp_df = gamut.gamut_q(gamut_hier_query, search_level, k)
+        temp_df = gamut.gws_q(gamut_hier_query, search_level, k)
         """ """
 
         gamut_df = pd.concat([gamut_df, temp_df], axis=0)
