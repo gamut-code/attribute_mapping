@@ -272,6 +272,7 @@ def data_out(directory_name, df, quer, search_level):
     else:
         print('EMPTY DATAFRAME')
         
+        
 def hier_data_out(directory_name, grainger_df, gamut_df, quer, search_level):
     """merge Granger and Gamut data and output as Excel file"""
     
@@ -306,77 +307,4 @@ def hier_data_out(directory_name, grainger_df, gamut_df, quer, search_level):
         worksheet.set_column(i, i, width) 
     writer.save()
   
-    writer.save()
-
-
-#output for attribute values for Grainger
-def GWS_upload_data_out(directory_name, df, search_level):
-
-    df['Category Name'] = modify_name(df['Category Name'], '/', '_') #clean up node names to include them in file names   
-    pd.io.formats.excel.header_style = None
-        
-    quer = 'ATTRIBUTES'
-        
-    columnTitles = ['STEP Blue Path', 'Segment ID', 'Segment Name', 'Family ID', 'Family Name', \
-                'Category ID', 'Category Name', 'Attribute_ID', 'Attribute Name', 'Definition', \
-                'Data Type', 'Multivalued?', 'Group', 'Group Type', 'Group Role', 'Group Parameter', \
-                'Restricted Attribute Value Domain', 'Unit of Measure Domain', 'Sample Values', \
-                'Numeric display type', 'Recommended Data Type', '%_Numeric', 'Potential UOMs', 'String_Values', \
-                'Unit of Measure Group Name', 'Definition Source', 'Matching', 'Grainger ALL Values', \
-                'Comma Separated Values', 'Gamut Top Attribute Values', 'Gamut Sample Values']
-    
-    df = df.reindex(columns=columnTitles)
-
-    # Write each dataframe to a different worksheet.
-    df = df.sort_values(['Segment Name', 'Category Name', 'Attribute Name'], ascending=[True, True, True])
-
-    outfile = outfile_name (directory_name, quer, df, search_level)
-    writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
-   
-    # Write each dataframe to a different worksheet.
-    df.to_excel(writer, sheet_name='Upload Data', index=False)
-    
-    # Get the xlsxwriter workbook and worksheet objects.
-    workbook  = writer.book
-    worksheet = writer.sheets['Upload Data']
-  
-    layout = workbook.add_format()
-    layout.set_text_wrap('text_wrap')
-    layout.set_align('left')
-    
-    header_fmt = workbook.add_format()
-    header_fmt.set_text_wrap('text_wrap')
-    header_fmt.set_bold()
-
-    num_layout = workbook.add_format()
-    num_layout.set_num_format('##0.00')
-
-    col_widths = get_col_widths(df)
-    col_widths = col_widths[1:]
-    
-    for i, width in enumerate(col_widths):
-        if width > 40:
-            width = 40
-        elif width < 10:
-            width = 10
-        worksheet.set_column(i, i, width)
-
-    worksheet.set_column('J:J', 40, layout)
-    worksheet.set_default_row(20)
-
-    highlight_cols = ['Recommended Data Type','%_Numeric','Potential UOMs','String_Values',\
-                        'Unit of Measure Group Name','Definition Source','Matching','Grainger ALL Values',\
-                        'Comma Separated Values','Gamut Top Attribute Values','Gamut Sample Values']
-    
-    # add blue highlight to 'helper' columns that will be deleted for import
-    color_format = workbook.add_format({'bg_color': 'add8e6'})
-    
-    for col in highlight_cols:
-        excel_col = int(df.columns.get_loc(col))
-        len_df = int(len(df.index) + 1)
-
-        # conditional formating to cover ALL cells, blank and populated
-        worksheet.conditional_format(1, excel_col, len_df, excel_col, {'type': 'blanks', 'format': color_format})
-        worksheet.conditional_format(1, excel_col, len_df, excel_col, {'type': 'no_blanks', 'format': color_format})
-
     writer.save()

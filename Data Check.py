@@ -6,17 +6,18 @@ Created on Tue Apr 16 17:00:31 2019
 """
 
 import file_data_GWS as fd
-import settings
+import settings_NUMERIC as settings
 import pandas as pd
 
 """CODE TO SWITCH BETWEEN ORIGINAL FLAVOR GAMUT AND GWS"""
 #from gamut_query import GamutQuery
-#from GWS_query import GWSQuery
-from GWS_TOOLBOX_query import GWSQuery
+from GWS_query import GWSQuery
+#from GWS_TOOLBOX_query import GWSQuery
 
 """ """
 from grainger_query import GraingerQuery
-from queries_PIM import gws_hier_query, gws_attr_query, grainger_basic_query, grainger_attr_query
+from queries_NUMERIC import gws_hier_query, gws_attr_query, \
+        STEP_ETL_query, gamut_attr_query, grainger_attr_ETL_query
 import query_code as q
 import time
 
@@ -33,45 +34,6 @@ gcom = GraingerQuery()
 # EXCLUDE: RMC = L15 (Zoro only products), RMC = blank (Canada only, Mexico only products)
 # EXCLUDE: Supplier No = 20009997, 20201557, 20201186 (7-Combo products)
 
-STEP_ETL_query="""
-            SELECT item.MATERIAL_NO AS Grainger_SKU
-            , cat.SEGMENT_ID AS Segment_ID
-            , cat.SEGMENT_NAME AS Segment_Name
-            , cat.FAMILY_ID AS Family_ID
-            , cat.FAMILY_NAME AS Family_Name
-            , cat.CATEGORY_ID AS Category_ID
-            , cat.CATEGORY_NAME AS Category_Name
-            
-            FROM PRD_DWH_VIEW_LMT.ITEM_V AS item
-
-            INNER JOIN PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
-            	ON cat.CATEGORY_ID = item.CATEGORY_ID
-        	--	AND item.DELETED_FLAG = 'N'
-            
-            INNER JOIN PRD_DWH_VIEW_LMT.material_v AS prod
-                ON prod.MATERIAL = item.MATERIAL_NO
-                
-            INNER JOIN PRD_DWH_VIEW_MTRL.supplier_v AS supplier
-                ON prod.vendor = supplier.SUPPLIER_NO
-
-            WHERE item.SALES_STATUS NOT IN ('DG', 'DV', 'CS')
-                AND item.RELATIONSHIP_MANAGER_CODE NOT IN ('L15', '')
-                AND supplier.SUPPLIER_NO NOT IN (20009997, 20201557, 20201186)
-                AND {} IN ({})
-            """
-
-gamut_attr_query="""
-    SELECT
-        , tax_att."categoryId" AS "Gamut_Node_ID"
-        , tax_att.id as "Gamut_Attr_ID"
-        , tax_att.name as "Gamut_Attribute_Name"
-        , tax_att.description as "Gamut_Attribute_Definition"
-        , tax_att."sampleValues" AS "Gamut_Sample_Values"
-   
-    FROM  taxonomy_attribute tax_att
-        
-    WHERE {} IN ({})
-        """            
             
 def gws_data(df):
     sku_list = df['Grainger_SKU'].tolist()
@@ -112,12 +74,18 @@ def stats(grainger_df):
 
         gws_nodes = temp_df['GWS_Node_ID'].dropna().unique()
 
-        temp_grainger_atts = gcom.grainger_q(grainger_attr_query, 'cat.CATEGORY_ID', node)
+        temp_grainger_atts = gcom.grainger_q(grainger_attr_ETL_query, 'cat.CATEGORY_ID', node)
 
         if temp_grainger_atts.empty==False:
             temp_grainger_atts['count'] = 1
 
             grainger_attributes = temp_grainger_atts['Grainger_Attribute_Name'].to_list()
+            
+            if 'Item' in grainger_attributes: grainger_attributes.remove('Item')
+            if 'Series' in grainger_attributes: grainger_attributes.remove('Series')
+            
+#            grainger_attributes = grainger_attributes.remove('Item')
+#            grainger_attributes = grainger_attributes.remove('Series')
 
             if gws_nodes.any():
                 gws_atts = gws.gws_q(gws_attr_query, 'tax_att."categoryId"', gws_nodes[0])
@@ -190,45 +158,44 @@ start_time = time.time()
 print('working...')
 
 
-if data_type == 'gws_query':
-    for k in search_data:
+#if data_type == 'gws_query':
+#    for k in search_data:
     
-        """CODE TO SWITCH BETWEEN ORIGINAL FLAVOR GAMUT, TOOLBOX AND GWS"""
+#        """CODE TO SWITCH BETWEEN ORIGINAL FLAVOR GAMUT, TOOLBOX AND GWS"""
 #        temp_df = gamut.gamut_q(gamut_hier_query, search_level, k)
-        temp_df = gws.gws_q(gws_hier_query, search_level, k)
-        """ """
+#        temp_df = gws.gws_q(gws_hier_query, search_level, k)
+#        """ """
 
-        print('GWS k = ', k)
-        gws_skus = len(temp_df['GWS_SKU'])
+#        print('GWS k = ', k)
+#        gws_skus = len(temp_df['GWS_SKU'])
 
-        if temp_df.empty == False:
-            temp_df['#_GWS_Products'] = ''
-            temp_df['#_GWS_Products'] = gws_skus
+#        if temp_df.empty == False:
+#            temp_df['#_GWS_Products'] = ''
+#            temp_df['#_GWS_Products'] = gws_skus
 
-            gws_df = pd.concat([gws_df, temp_df], axis=0)
-            gws_skus = len(temp_df['GWS_SKU'])
+#            gws_df = pd.concat([gws_df, temp_df], axis=0)
+#            gws_skus = len(temp_df['GWS_SKU'])
         
-        if gws_df.empty == False:
-            ws = 'yes'
-            grainger_df = grainger_data(gws_df)            
+#        if gws_df.empty == False:
+#            ws = 'yes'
+#            grainger_df = grainger_data(gws_df)            
 
             #if GWS data is present for these skus, merge with grainger data, otherwise just work with gws_df
-            if grainger_df.empty == False:
-                grainger_skus = len(temp_df['Grainger_SKU'])
+#            if grainger_df.empty == False:
+#                grainger_skus = len(temp_df['Grainger_SKU'])
 
-                grainger_df = grainger_df.merge(gws_df, how="left", on=["Grainger_SKU"])
+ #               grainger_df = grainger_df.merge(gws_df, how="left", on=["Grainger_SKU"])
 
+#           else:
+#               grainger_df = gws_df
 
-            else:
-                grainger_df = gws_df
+#           grainger_df = stats(grainger_df)
+#           fd.hier_data_out(settings.directory_name, grainger_df, quer, search_level, gws)
 
-            grainger_df = stats(grainger_df)
-            fd.hier_data_out(settings.directory_name, grainger_df, quer, search_level, gws)
+#        else:
+#            print('GWS {} No SKUs in node'.format(k))
 
-        else:
-            print('GWS {} No SKUs in node'.format(k))
-
-elif data_type == 'grainger_query':
+if data_type == 'grainger_query':
     if search_level == 'cat.CATEGORY_ID':
         for k in search_data:
             print('k = ', k)
@@ -265,7 +232,7 @@ elif data_type == 'grainger_query':
         for k in search_data:
             print('K = ', k)
             
-            node_list = gcom.grainger_q(grainger_basic_query, search_level, k)
+            node_list = gcom.grainger_q(STEP_ETL_query, search_level, k)
 
             grainger_l3 = node_list['Category_ID'].unique()  #create list of pim nodes to pull
             print('grainger L3s = ', grainger_l3)

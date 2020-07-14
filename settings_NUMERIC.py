@@ -29,4 +29,4 @@ def get_files_in_directory():
     return file_data
 
 
-directory_name = 'C:\Users\xcxg109\NonDrive_FIiles'
+directory_name = 'C:/Users/xcxg109/NonDriveFiles'
