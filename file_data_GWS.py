@@ -245,10 +245,11 @@ def GWS_upload_data_out(directory_name, df, search_level):
     quer = 'ATTRIBUTES'
         
     columnTitles = ['STEP Blue Path','Segment ID','Segment Name','Family ID','Family Name','STEP Category ID', \
-                'Category Name','STEP Attribute ID','WS Node Name','WS Node ID','WS Node Name','WS Attribute ID', \
-                'WS Attribute Name','Attribute Name','Definition','Data Type','Multivalued?','Group','Group Type', \
-                'Group Role','Group Parameter','Restricted Attribute Value Domain','Unit of Measure Domain (Group ID)', \
-                'Sample Values','Numeric Display Type','Notes','Recommended Data Type','%_Numeric','Potential UOMs', \
+                'Category Name','STEP Attribute ID','STEP Attribute Name','WS Node ID', \
+                'WS Node Name','WS Attribute ID','WS Attribute Name','Attribute Name','Definition',\
+                'Data Type','Multivalued?','Group','Group Type','Group Role','Group Parameter',\
+                'Restricted Attribute Value Domain','Unit of Measure Domain (Group ID)','Sample Values',\
+                'Numeric Display Type','Notes','Recommended Data Type','%_Numeric','Potential UOMs', \
                 'String Values (for Number Data Type)','Recommended Unit of Measure ID', \
                 'Definition Source','Matching','Grainger ALL Values','Comma Separated Values']
     

@@ -56,7 +56,7 @@ def gws_skus(grainger_skus):
         div_lists = [sku_list[i * size:(i + 1) * size] for i in range((len(sku_list) + size - 1) // size)]
 
         for k  in range(0, len(div_lists)):
-            print('batch {} of {}'.format(k, len(div_lists)))
+            print('batch {} of {}'.format(k, len(div_lists+1)))
             gws_skus = ", ".join("'" + str(i) + "'" for i in div_lists[k])
 #            temp_df = gws.gws_q(gws_basic_query, 'tprod."gtPartNumber"', gws_skus)
             temp_gamut_df = gamut.gamut_q(gamut_basic_query, 'tprod."supplierSku"', gws_skus)
@@ -116,7 +116,20 @@ def grainger_values(df):
     func_df['Count'] =1
     func_df['Comma Separated Values'] = ''
     
-    atts = func_df['Grainger_Attribute_Name'].unique()
+    atts = func_df['Grainger_Attribute_Name'].unique().tolist()
+    
+    # remove Item and Series from attribute counts (** specific terms)
+    i = 'Item' in atts
+    s = 'Series' in atts
+
+    if i: 
+        atts.remove('Item')
+    if s: 
+        atts.remove('Series')
+
+    # remove 'Green' attributes based on general pattern match
+    atts = [ x for x in atts if 'Green Certification' not in x ]
+    atts = [ x for x in atts if 'Green Environmental' not in x ]
 
     vals = pd.DataFrame(func_df.groupby(['Grainger_Attr_ID', 'Grainger_Attribute_Name', 'Grainger_Attribute_Value'])['Count'].sum())
     vals = vals.reset_index()
@@ -149,8 +162,9 @@ def grainger_values(df):
         temp_df['Sample_Values'] = '; '.join(item for item in temp_att['Grainger_Attribute_Value'] if item)
         all_vals = pd.concat([all_vals, temp_df], axis=0)
 
-    all_vals = all_vals[['Grainger_Attr_ID', 'Grainger ALL Values', 'Comma Separated Values', 'Sample_Values']]
-    all_vals = all_vals.drop_duplicates(subset=['Grainger_Attr_ID'])
+    if all_vals.empty == False:
+        all_vals = all_vals[['Grainger_Attr_ID', 'Grainger ALL Values', 'Comma Separated Values', 'Sample_Values']]
+        all_vals = all_vals.drop_duplicates(subset=['Grainger_Attr_ID'])
 #    df.to_csv('F:\CGabriel\Grainger_Shorties\OUTPUT\hoist.csv')    
 
     return all_vals
@@ -271,9 +285,6 @@ def get_LOVs():
 #    data_file = requests.get(lov_groups_url).content
 #    lov_df = pd.read_csv(io.StringIO(data_file.decode('utf-8')))
     
-    keep_df = pd.DataFrame()
-
-#    filename = 'F:/CGabriel/Grainger_Shorties/OUTPUT/LOV_list.csv'    
     filename = 'C:/Users/xcxg109/NonDriveFiles/reference/LOV_list.csv'
     
     df = pd.read_csv(filename)
@@ -291,18 +302,9 @@ def get_LOVs():
     df = df.rename(columns={'GIS_US_ENG':'Value'})
     df.dropna(subset=['Value'], inplace=True)
 
-    # read in the list of LOVs to keep
-    filename = 'C:/Users/xcxg109/NonDriveFiles/reference/LOVs_to_keep.csv'
-    
-    temp_df = pd.read_csv(filename)
-    temp_df = temp_df[['AttributeID', 'Visual_Attribute_Flag']]  # other contexts = 'AGI_CA_INTL_ENG', 'AGI_CA_FR', 'GISMX_ES_MX'
-
-    keep_df = pd.merge(df, temp_df, on=['AttributeID'], how='inner')
-
-#    keep_df.to_csv('C:/Users/xcxg109/NonDriveFiles/keep.csv')
     # explode values column, creating multiple rows for multivaules based on comma separation
     lst_col = 'Value' 
-    x = keep_df.assign(**{lst_col:df[lst_col].str.split(',')})   
+    x = df.assign(**{lst_col:df[lst_col].str.split(',')})   
 
     lovs = pd.DataFrame({col:np.repeat(x[col].values, x[lst_col].str.len()) for col in x.columns.difference([lst_col]) \
                    }).assign(**{lst_col:np.concatenate(x[lst_col].values)})[x.columns.tolist()]
@@ -314,10 +316,13 @@ def get_LOVs():
     lovs = lovs.groupby('AttributeID')['Value'].apply(set).reset_index()
     lovs['Value'] = lovs['Value'].apply(sorted)
     lovs['Value'] = lovs['Value'].transform(lambda x: '; '.join(x))
-    lovs['Value'] = lovs['Value'].str[2:]
     
     lovs = lovs[['AttributeID', 'Value']]
-
-#    lovs.to_csv('C:/Users/xcxg109/NonDriveFiles/lovs.csv')
     
-    return lovs
+    lov_list = lovs['AttributeID'].tolist()
+    lov_list = set(lov_list)
+
+#    lovs.to_csv('C:/Users/xcxg109/NonDriveFiles/nodes3.csv')
+
+
+    return lovs, lov_list

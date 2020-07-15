@@ -66,6 +66,8 @@ def stats(grainger_df):
     grainger_nodes = grainger_df['Category_ID'].unique()
         
     for node in grainger_nodes:
+        remove_count = 0
+        
         print('Grainger node = ', node)
         temp_df = grainger_df.loc[grainger_df['Category_ID']== node]
         
@@ -79,14 +81,25 @@ def stats(grainger_df):
         if temp_grainger_atts.empty==False:
             temp_grainger_atts['count'] = 1
 
-            grainger_attributes = temp_grainger_atts['Grainger_Attribute_Name'].to_list()
+            grainger_attributes = temp_grainger_atts['Grainger_Attribute_Name'].unique().tolist()
+            att_num = len(grainger_attributes)
             
-            if 'Item' in grainger_attributes: grainger_attributes.remove('Item')
-            if 'Series' in grainger_attributes: grainger_attributes.remove('Series')
-            
-#            grainger_attributes = grainger_attributes.remove('Item')
-#            grainger_attributes = grainger_attributes.remove('Series')
+            # remove Item and Series from attribute counts (** specific terms)
+            i = 'Item' in grainger_attributes
+            s = 'Series' in grainger_attributes   
+                        
+            if i: 
+                grainger_attributes.remove('Item')
+            if s: 
+                grainger_attributes.remove('Series')
 
+            # remove 'Green' attributes based on general pattern match
+            grainger_attributes = [ x for x in grainger_attributes if 'Green Certification' not in x ]
+            grainger_attributes = [ x for x in grainger_attributes if 'Green Environmental' not in x ]
+            
+            revised_num = int(att_num - len(grainger_attributes))
+                        
+                        
             if gws_nodes.any():
                 gws_atts = gws.gws_q(gws_attr_query, 'tax_att."categoryId"', gws_nodes[0])
 
@@ -108,6 +121,7 @@ def stats(grainger_df):
 
                     grainger_att_count = temp_grainger_atts.drop_duplicates(subset=['Grainger_Attr_ID'])
                     grainger_att_count = grainger_att_count.groupby(['Category_ID'])['count'].sum().reset_index()
+                    grainger_att_count = grainger_att_count - revised_num  # take into account if item or series were removed
 
                     temp_grainger_atts = temp_grainger_atts.merge(gws_att_count, how="left", left_on=["Category_Name"], \
                                                                                   right_on=['GWS_Node_Name'])
@@ -120,6 +134,7 @@ def stats(grainger_df):
                 else:
                     grainger_att_count = temp_grainger_atts.drop_duplicates(subset=['Grainger_Attr_ID'])
                     grainger_att_count = grainger_att_count.groupby(['Category_ID'])['count'].sum().reset_index()
+                    grainger_att_count = grainger_att_count - revised_num # take into account if item or series were removed
 
             else:
                 print('No GWS Nodes')
@@ -157,43 +172,6 @@ search_data = fd.data_in(data_type, settings.directory_name)
 start_time = time.time()
 print('working...')
 
-
-#if data_type == 'gws_query':
-#    for k in search_data:
-    
-#        """CODE TO SWITCH BETWEEN ORIGINAL FLAVOR GAMUT, TOOLBOX AND GWS"""
-#        temp_df = gamut.gamut_q(gamut_hier_query, search_level, k)
-#        temp_df = gws.gws_q(gws_hier_query, search_level, k)
-#        """ """
-
-#        print('GWS k = ', k)
-#        gws_skus = len(temp_df['GWS_SKU'])
-
-#        if temp_df.empty == False:
-#            temp_df['#_GWS_Products'] = ''
-#            temp_df['#_GWS_Products'] = gws_skus
-
-#            gws_df = pd.concat([gws_df, temp_df], axis=0)
-#            gws_skus = len(temp_df['GWS_SKU'])
-        
-#        if gws_df.empty == False:
-#            ws = 'yes'
-#            grainger_df = grainger_data(gws_df)            
-
-            #if GWS data is present for these skus, merge with grainger data, otherwise just work with gws_df
-#            if grainger_df.empty == False:
-#                grainger_skus = len(temp_df['Grainger_SKU'])
-
- #               grainger_df = grainger_df.merge(gws_df, how="left", on=["Grainger_SKU"])
-
-#           else:
-#               grainger_df = gws_df
-
-#           grainger_df = stats(grainger_df)
-#           fd.hier_data_out(settings.directory_name, grainger_df, quer, search_level, gws)
-
-#        else:
-#            print('GWS {} No SKUs in node'.format(k))
 
 if data_type == 'grainger_query':
     if search_level == 'cat.CATEGORY_ID':

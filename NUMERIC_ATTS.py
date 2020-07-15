@@ -234,17 +234,10 @@ def get_data_type(df, attribute):
     return df
 
 
-def match_lovs(lov_df, attribute):
+def match_lovs(lov_df, lov_list, attr_id):
     """compare the 'Grainger_Attr_ID' column against our list of LOVs"""
     
-    lov_list = list()
     values_list = list()
-    
-#    attr_id = str(attribute) + '_ATTR'
-    attr_id = attribute
- 
-    lov_list = lov_df['AttributeID'].tolist()
-    lov_list = set(lov_list)
 
     if attr_id in lov_list:
         temp_df = lov_df.loc[lov_df['AttributeID']== attr_id]
@@ -264,59 +257,59 @@ def process_sample_vals(df, row, pot):
     for uom in potential_list:
         if '"' in str(uom):
             sample_val = sample_val.replace('"', ' in')
-            LOV_val = sample_val.replace('"', ' in')
+            LOV_val = LOV_val.replace('"', ' in')
 
         if 'in.' in str(uom):
             sample_val = sample_val.replace('in.', 'in')
-            LOV_val = sample_val.replace('in.', 'in')
+            LOV_val = LOV_val.replace('in.', 'in')
 
         if 'ft.' in str(uom):
             sample_val = sample_val.replace('ft.', 'ft')
-            LOV_val = sample_val.replace('ft.', 'ft')
+            LOV_val = LOV_val.replace('ft.', 'ft')
             
         if 'yd.' in str(uom):
             sample_val = sample_val.replace('yd.', 'yd')   
-            LOV_val = sample_val.replace('yd.', 'yd')   
+            LOV_val = LOV_val.replace('yd.', 'yd')   
         
         if 'fl.' in str(uom):
             sample_val = sample_val.replace('fl.', 'fl')    
-            LOV_val = sample_val.replace('fl.', 'fl')    
+            LOV_val = LOV_val.replace('fl.', 'fl')    
         
         if 'oz.' in str(uom):
             sample_val = sample_val.replace('oz.', 'oz')    
-            LOV_val = sample_val.replace('oz.', 'oz')    
+            LOV_val = LOV_val.replace('oz.', 'oz')    
         
         if 'pt.' in str(uom):
             sample_val = sample_val.replace('pt.', 'pt')    
-            LOV_val = sample_val.replace('pt.', 'pt')    
+            LOV_val = LOV_val.replace('pt.', 'pt')    
 
         if 'qt.' in str(uom):
             sample_val = sample_val.replace('qt.', 'qt')     
-            LOV_val = sample_val.replace('qt.', 'qt')     
+            LOV_val = LOV_val.replace('qt.', 'qt')     
 
         if 'kg.' in str(uom):
             sample_val = sample_val.replace('kg.', 'kg')    
-            LOV_val = sample_val.replace('kg.', 'kg')    
+            LOV_val = LOV_val.replace('kg.', 'kg')    
         
         if 'gal.' in str(uom):
             sample_val = sample_val.replace('gal.', 'gal') 
-            LOV_val = sample_val.replace('gal.', 'gal') 
+            LOV_val = LOV_val.replace('gal.', 'gal') 
         
         if 'lb.' in str(uom):
             sample_val = sample_val.replace('lb.', 'lb')   
-            LOV_val = sample_val.replace('lb.', 'lb')   
+            LOV_val = LOV_val.replace('lb.', 'lb')   
         
         if 'cu.' in str(uom):
             sample_val = sample_val.replace('cu.', 'cu')  
-            LOV_val = sample_val.replace('cu.', 'cu')  
+            LOV_val = LOV_val.replace('cu.', 'cu')  
         
         if 'sq.' in str(uom):
             sample_val = sample_val.replace('sq.', 'sq')    
-            LOV_val = sample_val.replace('sq.', 'sq')    
+            LOV_val = LOV_val.replace('sq.', 'sq')    
 
         if '° C' in str(uom):
             sample_val = sample_val.replace('° C', '°C')
-            LOV_val = sample_val.replace('° C', '°C')
+            LOV_val = LOV_val.replace('° C', '°C')
 
         if '° F' in str(uom):
             sample_val = sample_val.replace('° F', '°F')     
@@ -625,7 +618,7 @@ def determine_uoms(df, uom_df, values_list):
     return df
 
     
-def analyze(df, uom_df, lov_df):
+def analyze(df, uom_df, lov_df, lov_list):
     """use the split fields in grainger_df to analyze suitability for number conversion and included in summary df"""
     analyze_df = pd.DataFrame()
     
@@ -646,7 +639,7 @@ def analyze(df, uom_df, lov_df):
     for attribute in atts:
         temp_df = df.loc[df['Grainger_Attr_ID']== attribute]
         temp_df = get_data_type(temp_df, attribute)
-        values_list = match_lovs(lov_df, attribute)
+        values_list = match_lovs(lov_df, lov_list, attribute)
         temp_df = determine_uoms(temp_df, uom_df, values_list)
 
         analyze_df = pd.concat([analyze_df, temp_df], axis=0, sort=False) #add prepped df for this gws node to the final df
@@ -657,7 +650,6 @@ def analyze(df, uom_df, lov_df):
 
 def gamut_process(gnode, gamut_dict):
     """if gamut node has not been preiously process (in gamut_dict), process and add it to the dictionary"""
-    print('gnode = ', gnode)
     gamut_df = q.gamut_definition(gnode, 'tax_att."categoryId"')
         
     if gamut_df.empty==False:
@@ -685,11 +677,10 @@ def gws_process(gws_node, gws_dict: Dict):
     return gws_dict, gws_df
 
 
-def grainger_process(grainger_df, grainger_all, uom_df, lov_df, gamut_dict, grainger_node):
+def grainger_process(grainger_df, grainger_all, uom_df, lov_df, lov_list, gamut_dict, grainger_node):
     """create a list of grainger skus, run through through the gws_skus query and pull gws attribute data if skus are present
         concat both dataframs and join them on matching attribute names"""
     
-    print('grainger node = ', grainger_node)
     df = pd.DataFrame()
         
     cat_name = grainger_df['Category_Name'].unique()
@@ -701,14 +692,16 @@ def grainger_process(grainger_df, grainger_all, uom_df, lov_df, gamut_dict, grai
     grainger_sku_count = len(grainger_skus)
     print('grainger sku count = ', grainger_sku_count)
     
-    grainger_df = analyze(grainger_df, uom_df, lov_df)
+    grainger_df = analyze(grainger_df, uom_df, lov_df, lov_list)
 
     grainger_df = grainger_df.drop_duplicates(subset=['Category_ID', 'Grainger_Attr_ID'])  #group by Category_ID and attribute name and keep unique
     grainger_df['STEP Blue Path'] = grainger_df['Segment_Name'] + ' > ' + grainger_df['Family_Name'] + \
                                                         ' > ' + grainger_df['Category_Name']
 
     grainger_df = grainger_df.drop(['Grainger_SKU', 'Grainger_Attribute_Value'], axis=1) #remove unneeded columns    
-    grainger_df = pd.merge(grainger_df, grainger_all, on=['Grainger_Attr_ID'])
+
+    if grainger_all.empty==False:
+        grainger_df = pd.merge(grainger_df, grainger_all, on=['Grainger_Attr_ID'])
     
     # for non-text rows, clean up UOMs in sample value column
     for row in grainger_df.itertuples():
@@ -827,7 +820,7 @@ def grainger_process(grainger_df, grainger_all, uom_df, lov_df, gamut_dict, grai
     return df, gamut_dict #where gamut_att_temp is the list of all normalized values for gamut attributes
 
 
-def attribute_process(grainger_df, uom_df, lov_df, gamut_dict: Dict, att_process_node):
+def attribute_process(grainger_df, uom_df, lov_df, lov_list, gamut_dict: Dict, att_process_node):
     attribute_df = pd.DataFrame()
     grainger_att_vals = pd.DataFrame()
 
@@ -836,12 +829,21 @@ def attribute_process(grainger_df, uom_df, lov_df, gamut_dict: Dict, att_process
    
     grainger_att_vals = q.grainger_values(grainger_df)
 
-    temp_df, gamut_dict = grainger_process(grainger_df, grainger_att_vals, uom_df, lov_df, gamut_dict, att_process_node)
+    temp_df, gamut_dict = grainger_process(grainger_df, grainger_att_vals, uom_df, lov_df, lov_list, gamut_dict, att_process_node)
     attribute_df = pd.concat([attribute_df, temp_df], axis=0, sort=False)
-    print ('Grainger node = {}\n'.format(att_process_node))
-
+    
     attribute_df = attribute_df.drop_duplicates(subset=['Grainger_Attr_ID'])
-            
+    
+
+    if 'Grainger_Attribute_Name' in attribute_df.columns:
+        # drop files that have an exact match for "Item" and "Series" and a contains match for green attributes
+        attribute_df = attribute_df[~attribute_df['Grainger_Attribute_Name'].str.contains(r'\bItem\b', regex=True)]
+        attribute_df = attribute_df[~attribute_df['Grainger_Attribute_Name'].str.contains(r'\Series\b', regex=True)]
+        attribute_df = attribute_df[~attribute_df['Grainger_Attribute_Name'].str.contains('Green Certification')]
+        attribute_df = attribute_df[~attribute_df['Grainger_Attribute_Name'].str.contains('Green Environmental')]
+
+        attribute_df['STEP Attribute Name'] = attribute_df['Grainger_Attribute_Name']
+    
     attribute_df = attribute_df.rename(columns={'Segment_ID':'Segment ID', 'Segment_Name':'Segment Name', \
                 'Family_ID':'Family ID', 'Family_Name':'Family Name', 'Category_ID':'STEP Category ID', \
                 'Category_Name':'Category Name', 'Grainger_Attr_ID':'STEP Attribute ID', 'Percent_Numeric':'%_Numeric', \
@@ -872,7 +874,7 @@ uom_df = pd.DataFrame()
 filename = 'C:/Users/xcxg109/NonDriveFiles/reference/UOM_data_sheet.csv'
 uom_df = pd.read_csv(filename)
 # create df of the lovs and their concat values
-lov_df = q.get_LOVs()
+lov_df, lov_list = q.get_LOVs()
 
 data_type = fd.search_type()
 
@@ -888,7 +890,7 @@ if data_type == 'grainger_query':
             grainger_df = q.gcom.grainger_q(grainger_attr_ETL_query, search_level, level_1)
             print('k = ', level_1)
             if grainger_df.empty == False:
-                df_upload, gamut_dict = attribute_process(grainger_df, uom_df, lov_df, gamut_dict, level_1)
+                df_upload, gamut_dict = attribute_process(grainger_df, uom_df, lov_df, lov_list, gamut_dict, level_1)
             else:
                 print('{} No attribute data'.format(level_1))
                     
@@ -901,8 +903,6 @@ if data_type == 'grainger_query':
             print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))
 
     else:
-        print ('search level = ', search_level)
-        
         for level_1 in search_data:
             print('** K = ', level_1)
             
@@ -911,31 +911,76 @@ if data_type == 'grainger_query':
             
             print('\ngrainger L3s = ', grainger_l3)
             
-            for l3 in grainger_l3:
-                print('\nL3 = ', l3)
-                grainger_df = q.gcom.grainger_q(grainger_attr_ETL_query, 'cat.CATEGORY_ID', l3)
-
-                if grainger_df.empty == False:
-                    temp_df_upload, gamut_dict = attribute_process(grainger_df, uom_df, lov_df, gamut_dict, l3)            
-                    df_upload = pd.concat([df_upload, temp_df_upload], axis=0, sort=False)
-                    
-                else:
-                    print('{} No attribute data'.format(level_1))
-                    
-            if df_upload.empty==False:
-                fd.GWS_upload_data_out(settings.directory_name, df_upload, search_level)
-                
-            print('end of K = ', level_1)
-            
-            filename = 'C:/Users/xcxg109/NonDriveFiles/backup_'+str(level_1)+'.csv'
-            # export to CSV as backup in case ExcelWriter fails
-            df_upload.to_csv(filename)
-               
-        else:
-            print('EMPTY DATAFRAME')
-        
-            print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))
+            if len(grainger_l3) > 10:
+                list_num = round(len(grainger_l3)/10, 0)
+                list_num = int(list_num)
     
+                if list_num == 1:
+                    list_num = 2
+                
+                print('running Grainger nodes in {} batches'.format(list_num))
+
+                l3_size = round(len(grainger_l3)/list_num, 0)
+                l3_size = int(l3_size)
+
+                divided = [grainger_l3[i * l3_size:(i + 1) * l3_size] for i in range((len(grainger_l3) + l3_size - 1) // l3_size)]
+
+                for k  in range(0, len(divided)):
+                    l3_batch = divided[k]
+
+                    print('batch {} : {}'.format(k+1, l3_batch))
+                
+                    for l3 in l3_batch:
+                        print('\nL3 = ', l3)
+                        grainger_df = q.gcom.grainger_q(grainger_attr_ETL_query, 'cat.CATEGORY_ID', l3)
+
+                        if grainger_df.empty == False:
+                            temp_df_upload, gamut_dict = attribute_process(grainger_df, uom_df, lov_df, lov_list, gamut_dict, l3)            
+                            df_upload = pd.concat([df_upload, temp_df_upload], axis=0, sort=False)
+                    
+                        else:
+                            print('{} No attribute data'.format(level_1))
+                    
+                    if df_upload.empty==False:
+                        fd.GWS_upload_data_out(settings.directory_name, df_upload, search_level)
+                
+                        print('end of K = ', level_1)
+                    
+                        filename = 'C:/Users/xcxg109/NonDriveFiles/backup_'+str(level_1)+'.csv'
+                        # export to CSV as backup in case ExcelWriter fails
+                        df_upload.to_csv(filename)
+
+                    else:
+                        print('EMPTY DATAFRAME')
+        
+                print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))
+
+            else:
+                for l3 in grainger_l3:
+                    print('\nL3 = ', l3)
+                    grainger_df = q.gcom.grainger_q(grainger_attr_ETL_query, 'cat.CATEGORY_ID', l3)
+
+                    if grainger_df.empty == False:
+                        temp_df_upload, gamut_dict = attribute_process(grainger_df, uom_df, lov_df, lov_list, gamut_dict, l3)            
+                        df_upload = pd.concat([df_upload, temp_df_upload], axis=0, sort=False)
+                    
+                    else:
+                        print('{} No attribute data'.format(level_1))
+                    
+                if df_upload.empty==False:
+                    fd.GWS_upload_data_out(settings.directory_name, df_upload, search_level)
+                
+                    print('end of K = ', level_1)
+
+                    filename = 'C:/Users/xcxg109/NonDriveFiles/backup_'+str(level_1)+'.csv'
+                    # export to CSV as backup in case ExcelWriter fails
+                    df_upload.to_csv(filename)
+               
+                else:
+                    print('EMPTY DATAFRAME')
+        
+                print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))
+        
  #   mem.clear_all()
                     
 print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))
