@@ -16,7 +16,11 @@ def get_file_data():
     file_data = [re.split('\s+', i.strip('\n')) for i in open(file_name)]
     return file_data
 
-
+def choose_file():
+    #ask for user input for which file to read
+    file_name = askopenfilename(initialdir = att_directory)
+    return file_name
+    
 def get_files_in_directory():
     #read all files in directory then process them in sequence
     file_data = dict()
@@ -30,3 +34,5 @@ def get_files_in_directory():
 
 
 directory_name = 'C:/Users/xcxg109/NonDriveFiles'
+
+att_directory = 'C:/Users/xcxg109/NonDriveFiles/reference'

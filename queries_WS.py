@@ -89,6 +89,7 @@ gws_attr_values="""
         , tprod."gtPartNumber" as "Grainger_SKU"
         , tax_att.id as "Gamut_Attr_ID"
         , tax_att.name as "Gamut_Attribute_Name"
+        , tprodvalue.id as "Attribute_Value_ID"
         , tax_att.description as "Gamut_Attribute_Definition"
         , tprodvalue.value as "Original Value"
         , tprodvalue."valueNormalized" as "Normalized Value"
@@ -146,10 +147,55 @@ gws_hier_query="""
 
             INNER JOIN tax
                 ON tax.id = tprod."categoryId"
-                -- AND (10006 = ANY(tax.ancestors)) --OR 8215 = ANY(tax.ancestors) OR 7739 = ANY(tax.ancestors))  -- *** ADD TOP LEVEL NODES HERE ***
 
             WHERE {} IN ({})
             """
+
+#pull short descriptions from the gamut postgres database
+gws_short_query="""
+        WITH RECURSIVE merch AS (
+                SELECT  id,
+			        name,
+                    ARRAY[]::INTEGER[] AS ancestors,
+                    ARRAY[]::character varying[] AS ancestor_names
+                FROM    merchandising_category as category
+                WHERE   "parentId" IS NULL
+                AND category.deleted = false
+                 and category.visible = true
+
+                UNION ALL
+
+                SELECT  category.id,
+			category.name,
+                    merch.ancestors || category."parentId",
+                    merch.ancestor_names || parent_category.name
+                FROM    merchandising_category as category
+                    JOIN merch on category."parentId" = merch.id
+                    JOIN merchandising_category parent_category on category."parentId" = parent_category.id
+                WHERE   category.deleted = false
+			and category.visible = true		
+            )
+
+           SELECT tprod."gtPartNumber" AS "WS_SKU"
+            , mprod.description AS "WS_Product_Description"
+            , mprod."merchandisingCategoryId" AS "WS_Merch_Node"
+            , mcoll.name as "WS_Collection"
+            
+            FROM  merchandising_product as mprod   
+
+            INNER JOIN taxonomy_product AS tprod
+                ON tprod.id = mprod."taxonomyProductId"
+                AND mprod.deleted = 'f'
+
+            INNER JOIN merchandising_collection_product mcollprod
+                ON mprod.id = mcollprod."merchandisingProductId"
+
+            INNER JOIN merchandising_collection as mcoll
+                ON mcoll.id = mcollprod."collectionId"
+
+            WHERE tprod.deleted = 'f'
+                AND {} IN ({})
+            """  
 
             
 #pull attribute values from Grainger teradata material universe by L3
@@ -164,8 +210,9 @@ grainger_attr_query="""
             , attr.DESCRIPTOR_ID as Grainger_Attr_ID
             , attr.DESCRIPTOR_NAME as Grainger_Attribute_Name
             , item_attr.ITEM_DESC_VALUE as Grainger_Attribute_Value
---            , item.PM_CODE AS PM_Code
---            , item.SALES_STATUS as Sales_Status
+            , item.PM_CODE AS PM_Code
+            , item.SALES_STATUS as Sales_Status
+            , item.RELATIONSHIP_MANAGER_CODE
             , attr.attribute_level_definition as Grainger_Attribute_Definition
             , cat_desc.cat_specific_attr_definition as Grainger_Category_Specific_Definition
 
@@ -223,68 +270,28 @@ STEP_ETL_query="""
             , cat.FAMILY_NAME AS Family_Name
             , cat.CATEGORY_ID AS Category_ID
             , cat.CATEGORY_NAME AS Category_Name
+            , item.RELATIONSHIP_MANAGER_CODE
+            , item.PM_CODE
+            , item.SALES_STATUS
 
             FROM PRD_DWH_VIEW_LMT.ITEM_V AS item
 
-            LEFT OUTER JOIN PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
+            INNER JOIN PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
             	ON cat.CATEGORY_ID = item.CATEGORY_ID
-        	--	AND item.DELETED_FLAG = 'N'
+        --		AND item.DELETED_FLAG = 'N'
             
             LEFT OUTER JOIN PRD_DWH_VIEW_LMT.material_v AS prod
                 ON prod.MATERIAL = item.MATERIAL_NO
                 
             LEFT OUTER JOIN PRD_DWH_VIEW_MTRL.supplier_v AS supplier
                 ON prod.vendor = supplier.SUPPLIER_NO
+                AND supplier.SUPPLIER_NO NOT IN (20009997, 20201557, 20201186)
 
             WHERE item.SALES_STATUS NOT IN ('DG', 'DV', 'CS')
                 AND item.RELATIONSHIP_MANAGER_CODE NOT IN ('L15', '')
-                AND supplier.SUPPLIER_NO NOT IN (20009997, 20201557, 20201186)
                 AND {} IN ({})
             """
- 
-grainger_attr_ETL_query_NEW_NEW = """
-    SELECT CATEGORY_V.SEGMENT_ID as Segment_ID
-       , CATEGORY_V.SEGMENT_NAME as Segment_Name
-       , CATEGORY_V.FAMILY_ID as Family_ID
-       , CATEGORY_V.FAMILY_NAME as Family_Name
-       , CATEGORY_V.CATEGORY_ID as Category_ID
-       , CATEGORY_V.CATEGORY_NAME as Category_Name
-       , ITEM_V.MATERIAL_NO as Grainger_SKU
-       , MAT_DESCRIPTOR_V.DESCRIPTOR_ID as Grainger_Attr_ID
-       , MAT_DESCRIPTOR_V.DESCRIPTOR_NAME as Grainger_Attribute_Name
-       , ITEM_DESC_V.ITEM_DESC_VALUE as Grainger_Attribute_Value
-       , MAT_DESCRIPTOR_V.attribute_level_definition as Grainger_Attribute_Definition
-       , CAT_DESC_V.cat_specific_attr_definition as Grainger_Category_Specific_Definition
-
-    FROM (
-            (
-                (
-                    PRD_DWH_VIEW_MTRL.ITEM_DESC_V ITEM_DESC_V
-                    
-                    INNER JOIN PRD_DWH_VIEW_MTRL.ITEM_V ITEM_V
-                        ON (ITEM_DESC_V.MATERIAL_NO = ITEM_V.MATERIAL_NO))
-
-                    INNER JOIN PRD_DWH_VIEW_MTRL.MAT_DESCRIPTOR_V MAT_DESCRIPTOR_V
-                        ON (MAT_DESCRIPTOR_V.DESCRIPTOR_ID = ITEM_DESC_V.DESCRIPTOR_ID))
-
-                    INNER JOIN PRD_DWH_VIEW_MTRL.CAT_DESC_V CAT_DESC_V
-                        ON (ITEM_DESC_V.CATEGORY_ID = CAT_DESC_V.CATEGORY_ID)
-                        AND (ITEM_DESC_V.DESCRIPTOR_ID = CAT_DESC_V.DESCRIPTOR_ID))
-
-                    INNER JOIN PRD_DWH_VIEW_MTRL.CATEGORY_V CATEGORY_V
-                        ON (ITEM_V.CATEGORY_ID = CATEGORY_V.CATEGORY_ID)
-
-        WHERE     ({} IN {})
-                AND (ITEM_V.DELETED_FLAG = 'N')
-                AND (ITEM_DESC_V.DELETED_FLAG = 'N')
-                AND (ITEM_DESC_V.LANG = 'EN')
-                AND (ITEM_V.PRODUCT_APPROVED_US_FLAG = 'Y')
-                AND (CAT_DESC_V.DELETED_FLAG = 'N')
-                AND ("ITEM_V"."SUPPLIER_NO" NOT IN (20009997, 20201557, 20201186))
-                AND ("ITEM_V"."RELATIONSHIP_MANAGER_CODE" NOT IN ('L15', ''))
-                AND ("ITEM_V"."SALES_STATUS" NOT IN ('DG', 'DV', 'CS'))
-      """
-      
+            
 grainger_attr_ETL_query="""
            	SELECT cat.SEGMENT_ID AS Segment_ID
             , cat.SEGMENT_NAME AS Segment_Name
@@ -388,3 +395,192 @@ gamut_attr_query="""
         
     WHERE {} IN ({})
         """
+        
+#get basic SKU list and hierarchy data from Grainger teradata material universe
+grainger_basic_query="""
+            SELECT item.MATERIAL_NO AS Grainger_SKU
+            , cat.SEGMENT_ID AS L1
+            , cat.SEGMENT_NAME
+            , cat.FAMILY_ID AS L2
+            , cat.FAMILY_NAME
+            , cat.CATEGORY_ID AS L3
+            , cat.CATEGORY_NAME
+            , item.PM_CODE
+            , item.SALES_STATUS
+            , yellow.PROD_CLASS_ID AS Gcom_Yellow
+            , flat.Web_Parent_Name AS Gcom_Web_Parent
+            , supplier.SUPPLIER_NO AS Supplier_ID
+            , supplier.SUPPLIER_NAME AS Supplier
+
+
+            FROM PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
+            
+            RIGHT JOIN PRD_DWH_VIEW_LMT.ITEM_V AS item
+            	ON cat.CATEGORY_ID = item.CATEGORY_ID
+        		AND item.DELETED_FLAG = 'N'
+                AND item.PRODUCT_APPROVED_US_FLAG = 'Y'
+                AND item.PM_CODE NOT IN ('R9')
+
+            FULL OUTER JOIN PRD_DWH_VIEW_LMT.Prod_Yellow_Heir_Class_View AS yellow
+                ON yellow.PRODUCT_ID = item.MATERIAL_NO
+
+            FULL OUTER JOIN PRD_DWH_VIEW_LMT.Yellow_Heir_Flattend_view AS flat
+                ON yellow.PROD_CLASS_ID = flat.Heir_End_Class_Code
+
+            INNER JOIN PRD_DWH_VIEW_LMT.material_v AS prod
+                on prod.MATERIAL = item.MATERIAL_NO
+
+            INNER JOIN PRD_DWH_VIEW_MTRL.supplier_v AS supplier
+                ON prod.vendor = supplier.SUPPLIER_NO
+                                
+            WHERE item.SALES_STATUS NOT IN ('DG', 'DV', 'WV', 'WG')
+            	AND {} IN ({})
+            """
+
+
+grainger_attr_ALL_query="""
+           	SELECT cat.SEGMENT_ID AS Segment_ID
+            , cat.SEGMENT_NAME AS Segment_Name
+            , cat.FAMILY_ID AS Family_ID
+            , cat.FAMILY_NAME AS Family_Name
+            , cat.CATEGORY_ID AS Category_ID
+            , cat.CATEGORY_NAME AS Category_Name
+            , item.MATERIAL_NO AS Grainger_SKU
+            , attr.DESCRIPTOR_ID as Grainger_Attr_ID
+            , attr.DESCRIPTOR_NAME as Grainger_Attribute_Name
+            , item_attr.ITEM_DESC_VALUE as Grainger_Attribute_Value
+            , attr.attribute_level_definition as Grainger_Attribute_Definition
+            , cat_desc.cat_specific_attr_definition as Grainger_Category_Specific_Definition
+
+            FROM PRD_DWH_VIEW_MTRL.ITEM_DESC_V AS item_attr
+
+            INNER JOIN PRD_DWH_VIEW_MTRL.ITEM_V AS item
+                ON 	item_attr.MATERIAL_NO = item.MATERIAL_NO
+
+            INNER JOIN PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
+                ON cat.CATEGORY_ID = item_attr.CATEGORY_ID
+
+            INNER JOIN PRD_DWH_VIEW_MTRL.CAT_DESC_V AS cat_desc
+                ON cat_desc.CATEGORY_ID = item_attr.CATEGORY_ID
+
+           LEFT  JOIN PRD_DWH_VIEW_LMT.material_v AS prod
+                ON prod.MATERIAL = item.MATERIAL_NO
+                
+            LEFT JOIN PRD_DWH_VIEW_MTRL.supplier_v AS supplier
+                ON prod.vendor = supplier.SUPPLIER_NO
+
+            INNER JOIN PRD_DWH_VIEW_MTRL.MAT_DESCRIPTOR_V AS attr
+                ON attr.DESCRIPTOR_ID = item_attr.DESCRIPTOR_ID
+
+            WHERE {} IN ({})
+                """
+
+ETL_nodes_query="""
+            SELECT
+                cat.SEGMENT_ID AS Segment_ID
+                , cat.SEGMENT_NAME AS Segment_Name
+                , cat.FAMILY_ID AS Family_ID
+                , cat.FAMILY_NAME AS Family_Name
+                , cat.CATEGORY_ID AS Category_ID
+                , cat.CATEGORY_NAME AS Category_Name
+
+            FROM PRD_DWH_VIEW_LMT.ITEM_V AS item
+
+            INNER JOIN PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
+            	ON cat.CATEGORY_ID = item.CATEGORY_ID
+        		AND item.DELETED_FLAG = 'N'
+            
+            LEFT OUTER JOIN PRD_DWH_VIEW_LMT.material_v AS prod
+                ON prod.MATERIAL = item.MATERIAL_NO
+                
+            LEFT OUTER JOIN PRD_DWH_VIEW_MTRL.supplier_v AS supplier
+                ON prod.vendor = supplier.SUPPLIER_NO
+                AND supplier.SUPPLIER_NO NOT IN (20009997, 20201557, 20201186)
+
+            WHERE item.SALES_STATUS NOT IN ('DG', 'DV', 'CS')
+                AND item.RELATIONSHIP_MANAGER_CODE NOT IN ('L15', '')
+                AND {} IN ({})
+            """
+            
+#pull item and SEO descrpitions from the grainger teradata material universe
+grainger_short_query="""
+            SELECT item.MATERIAL_NO AS WS_SKU
+            , cat.SEGMENT_ID AS Segment_ID
+            , cat.SEGMENT_NAME AS Segment_Name
+            , cat.FAMILY_ID AS Family_ID
+            , cat.FAMILY_NAME AS Family_Name
+            , cat.CATEGORY_ID AS Category_ID
+            , cat.CATEGORY_NAME AS Category_Name
+            , item.SHORT_DESCRIPTION AS Item_Description
+            , item.GIS_SEO_SHORT_DESC_AUTOGEN AS SEO_Description
+            , item.PM_CODE
+            , brand.BRAND_NAME            
+            , yellow.PROD_CLASS_ID AS STEP_Yellow
+            , flat.Web_Parent_Name AS Gcom_Web_Parent
+
+            FROM PRD_DWH_VIEW_LMT.ITEM_V AS item
+
+            INNER JOIN PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
+            	ON cat.CATEGORY_ID = item.CATEGORY_ID
+        		AND item.DELETED_FLAG = 'N'
+                AND item.PRODUCT_APPROVED_US_FLAG = 'Y'
+                AND item.PM_CODE NOT IN ('R9')
+                AND item.PM_CODE NOT IN ('R4')
+
+            INNER JOIN PRD_DWH_VIEW_LMT.Prod_Yellow_Heir_Class_View AS yellow
+                ON yellow.PRODUCT_ID = item.MATERIAL_NO
+
+            INNER JOIN PRD_DWH_VIEW_LMT.Yellow_Heir_Flattend_view AS flat
+                ON yellow.PROD_CLASS_ID = flat.Heir_End_Class_Code
+
+            INNER JOIN PRD_DWH_VIEW_MTRL.BRAND_V AS brand
+                ON item.BRAND_NO = brand.BRAND_NO
+
+            INNER JOIN PRD_DWH_VIEW_MTRL.SUPPLIER_V AS supplier
+            	ON supplier.SUPPLIER_NO = item.SUPPLIER_NO
+
+            WHERE item.SALES_STATUS NOT IN ('DG', 'DV', 'WV', 'WG')
+            	AND {} IN ({})
+            """
+
+
+#pull item and SEO descrpitions from the grainger teradata material universe
+grainger_short_values="""
+            SELECT item.MATERIAL_NO AS WS_SKU
+            , cat.SEGMENT_ID AS Segment_ID
+            , cat.SEGMENT_NAME AS Segment_Name
+            , cat.FAMILY_ID AS Family_ID
+            , cat.FAMILY_NAME as Family_Name
+            , cat.CATEGORY_ID AS Category_ID
+            , cat.CATEGORY_NAME AS Category_Name
+            , item.SHORT_DESCRIPTION AS Item_Description
+            , item.GIS_SEO_SHORT_DESC_AUTOGEN AS SEO_Description
+            , item.PM_CODE
+            , yellow.PROD_CLASS_ID AS STEP_Yellow
+            , flat.Web_Parent_Name AS Gcom_Web_Parent
+
+            FROM PRD_DWH_VIEW_LMT.ITEM_V AS item
+
+            INNER JOIN PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
+            	ON cat.CATEGORY_ID = item.CATEGORY_ID
+        		AND item.DELETED_FLAG = 'N'
+                AND item.PRODUCT_APPROVED_US_FLAG = 'Y'
+                AND item.PM_CODE NOT IN ('R9')
+                AND item.PM_CODE NOT IN ('R4')
+
+            INNER JOIN PRD_DWH_VIEW_LMT.Prod_Yellow_Heir_Class_View AS yellow
+                ON yellow.PRODUCT_ID = item.MATERIAL_NO
+
+            INNER JOIN PRD_DWH_VIEW_LMT.Yellow_Heir_Flattend_view AS flat
+                ON yellow.PROD_CLASS_ID = flat.Heir_End_Class_Code
+
+            INNER JOIN PRD_DWH_VIEW_MTRL.BRAND_V AS brand
+                ON item.BRAND_NO = brand.BRAND_NO
+
+            INNER JOIN PRD_DWH_VIEW_MTRL.SUPPLIER_V AS supplier
+            	ON supplier.SUPPLIER_NO = item.SUPPLIER_NO
+
+            WHERE item.SALES_STATUS NOT IN ('DG', 'DV', 'WV', 'WG')
+            	AND LOWER({}) LIKE LOWER ({})
+            """
+            

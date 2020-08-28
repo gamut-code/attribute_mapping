@@ -22,7 +22,7 @@ test_q="""
 
             FROM PRD_DWH_VIEW_MTRL.CATEGORY_V cat
                                             
-            WHERE cat.SEGMENT_ID = (23717)
+            WHERE cat.SEGMENT_ID = (1026)
             """
 
 

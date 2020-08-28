@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 """
 Created on Sun Mar 31 20:58:51 2019
 
@@ -10,6 +10,26 @@ import settings_NUMERIC as settings
 import pandas.io.formats.excel
 import os
 import string
+
+
+def WS_search_type():
+    """If data type is node (BLUE data), ask for segment/family/category level for pulling the query. This output feeds directly into the query"""
+    while True:
+            try:
+                search_level = input("Search by: \n1. Segement (L1)\n2. Family (L2)\n3. Category (L3) ")
+                if search_level in ['1', 'Segment', 'segment', 'SEGMENT', 'l1', 'L1']:
+                    search_level = 'cat.SEGMENT_ID'
+                    break
+                elif search_level in ['2', 'Family', 'family', 'FAMILY', 'l2', 'L2']:
+                    search_level = 'cat.FAMILY_ID'
+                    break
+                elif search_level in ['3', 'Category', 'category', 'CATEGORY', 'l3', 'L3']:
+                    search_level = 'cat.CATEGORY_ID'
+                    break
+            except ValueError:
+                print('Invalid search type')
+        
+    return search_level
 
 
 def search_type():
@@ -30,7 +50,6 @@ def search_type():
             print('Invalid search type')
         
     return data_type
-
 
 def blue_search_level():
     """If data type is node (BLUE data), ask for segment/family/category level for pulling the query. This output feeds directly into the query"""
@@ -89,44 +108,48 @@ def get_col_widths(df):
 
 def outfile_name (directory_name, quer, df, search_level, gws='no'):
 #generate the file name used by the various output functions
-    if quer == 'CHECK':
-        if search_level == 'cat.SEGMENT_ID':
-            outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,2], df.iloc[0,3], '_DATA CHECK')
-        else:
-            outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,6], df.iloc[0,7], '_DATA CHECK') 
+    if search_level == 'SKU':
+        outfile = Path(directory_name)/"SKU REPORT.xlsx"
+
+    else:   
+        if gws == 'yes':
+            if search_level == 'cat.SEGMENT_ID':    #set directory path and name output file
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,1], df.iloc[0,2], quer)
+            elif search_level == 'cat.FAMILY_ID':
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,3], df.iloc[0,4], quer)
+            else:
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)
+
+        elif quer == 'CHECK':
+            if search_level == 'cat.SEGMENT_ID':
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,2], df.iloc[0,3], '_DATA CHECK')
+            else:
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,6], df.iloc[0,7], '_DATA CHECK') 
+
+        elif quer == 'ATTRIBUTES' or quer == 'ETL':
+            if search_level == 'cat.CATEGORY_ID':
+                outfile = Path(directory_name)/"{} {}.xlsx".format(df.iloc[0,5], quer)                
+            elif search_level == 'cat.FAMILY_ID':
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,3], df.iloc[0,4], quer)                
+            else:
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,1], df.iloc[0,2], quer)
+
+        elif quer == 'DESC':
+            if search_level == 'cat.SEGMENT_ID':
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,1], df.iloc[0,2], quer)
+            else:
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)
             
-    elif quer == 'ATTRIBUTES':
-        if search_level == 'cat.SEGMENT_ID':
-            outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,1], df.iloc[0,2], quer)
-        elif search_level == 'cat.FAMILY_ID':
-            outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,3], df.iloc[0,4], quer)
         else:
-            outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)                
-    else:
-        outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)
-        
-    return outfile
-
-
-def outfile_name_GWS (directory_name, quer, l2, df, search_level, gws='no', level='excel'):
-#generate the file name used by the various output functions
-    if level == 'csv':
-        if quer == 'ATTRIBUTES':
-            if search_level == 'cat.SEGMENT_ID':
-                outfile = Path(directory_name)/"{} {} {}.csv".format(l2, df.iloc[0,2], quer)
+            if search_level == 'cat.CATEGORY_ID':
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,4], df.iloc[0,5], quer)                
+            elif search_level == 'cat.SEGMENT_ID':
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,0], df.iloc[0,1], quer)
+            elif search_level == 'cat.FAMILY_ID':
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,3], df.iloc[0,4], quer)
             else:
-                outfile = Path(directory_name)/"{} {} {}.csv".format(df.iloc[0,5], df.iloc[0,6], quer)                
-        else:
-            outfile = Path(directory_name)/"{} {} {}.csv".format(df.iloc[0,5], df.iloc[0,6], quer)
-
-    if level == 'excel':
-        if quer == 'ATTRIBUTES':
-            if search_level == 'cat.SEGMENT_ID':
-                outfile = Path(directory_name)/"{} {} {}.xlsx".format(l2, df.iloc[0,2], quer)
-            else:
-                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)                
-        else:
-            outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)
+            
         
     return outfile
 
@@ -166,14 +189,16 @@ def data_check_out(directory_name, grainger_df, stats_df, quer, search_level, ws
                      'PM_CODE', 'SALES_STATUS', 'RELATIONSHIP_MANAGER_CODE']        
     grainger_df = grainger_df.reindex(columns=columnsTitles)
     
-    columnsTitles = ['Category_ID', 'Category_Name', 'GWS_Node_ID', 'GWS_Node_Name', '#_Grainger_Attributes', \
-                   '#_GWS_Attributes', '#_Grainger_Products', '#_GWS_Products', 'Differing_Attributes']        
+    columnsTitles = ['Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_ID', 'Category_Name', \
+                    'GWS_Node_ID', 'GWS_Node_Name', '#_Grainger_Attributes', '#_GWS_Attributes', \
+                    '#_Grainger_Products', '#_GWS_Products', 'Grainger_Attributes', 'GWS_Attributes', 'Differing_Attributes']        
     stats_df = stats_df.reindex(columns=columnsTitles)
+    stats_df = stats_df.sort_values(['Category_Name'], ascending=[True])
 
     outfile = outfile_name (directory_name, quer, grainger_df, search_level, ws)
     
     writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
-#    writer = pd.ExcelWriter('F:\CGabriel\Grainger_Shorties\OUTPUT\moist.xlsx', engine='xlsxwriter')
+    workbook  = writer.book
       
     stats_df.to_excel (writer, sheet_name="Stats", startrow=0, startcol=0, index=False)
     grainger_df.to_excel (writer, sheet_name="All_SKUs", startrow=0, startcol=0, index=False)
@@ -201,48 +226,21 @@ def data_check_out(directory_name, grainger_df, stats_df, quer, search_level, ws
             width = 10
         worksheet2.set_column(i, i, width) 
   
+    layout = workbook.add_format()
+    layout.set_text_wrap('text_wrap')
+    layout.set_align('left')
+
+    worksheet1.set_column('M:M', 60, layout)
+    worksheet1.set_column('N:N', 60, layout)
+    worksheet1.set_column('O:O', 60, layout)
+
     writer.save()
-
-
-#def get_filename(directory_name, df, l2, search_level):
-#    """ create the file name wor GWS output """
-#
-#    quer = 'ATTRIBUTES'
-#    outfile_csv = outfile_name_GWS (directory_name, quer, l2, df, search_level, level='csv')
-#    outfile_xlsx = outfile_name_GWS (directory_name, quer, l2, df, search_level, level='excel')
-#    
-#    return outfile_csv, outfile_xlsx
-
-    
-def append_csv(outfile, df):
-    """ append L3s into running csv file to be converted into xlsx for every L2 """
-
-#    sep = ','
-    sep="\t"
-    print('outfile = ', outfile)
-    
-    if not os.path.isfile(outfile):
-        df.to_csv(outfile, mode='a', index=False, sep=sep, encoding = 'ISO-8859-1')
-        
-    elif len(df.columns) != len(pd.read_csv(outfile, nrows=1, sep=sep, encoding='latin-1').columns):
-        raise Exception("Columns do not match!! Dataframe has " + str(len(df.columns)) + " columns. CSV file has " + str(len(pd.read_csv(outfile, nrows=1, sep=sep).columns)) + " columns.")
-
-    elif not (df.columns == pd.read_csv(outfile, nrows=1, sep=sep, encoding='latin-1').columns).all():
-        raise Exception("Columns and column order of dataframe and csv file do not match!!")
-
-    else:
-        df.to_csv(outfile, mode='a', index=False, sep=sep, header=False)
-
-    return outfile
 
 
 #output for attribute values for Grainger
 def GWS_upload_data_out(directory_name, df, search_level):
-
-    df['Category Name'] = modify_name(df['Category Name'], '/', '_') #clean up node names to include them in file names   
-    pd.io.formats.excel.header_style = None
-        
-    quer = 'ATTRIBUTES'
+       
+    quer = 'ETL'
         
     columnTitles = ['STEP Blue Path','Segment ID','Segment Name','Family ID','Family Name','STEP Category ID', \
                 'Category Name','STEP Attribute ID','STEP Attribute Name','WS Node ID', \
@@ -310,3 +308,61 @@ def GWS_upload_data_out(directory_name, df, search_level):
         worksheet.conditional_format(1, excel_col, len_df, excel_col, {'type': 'no_blanks', 'format': color_format})
 
     writer.save()
+    
+    
+def shorties_data_out(directory_name, grainger_df, gws_df, search_level):
+    """merge Granger and Gamut data and output as Excel file"""
+    
+    gws = 'no'
+    quer = 'DESC'
+    grainger_df['Category_Name'] = modify_name(grainger_df['Category_Name'], '/', '_') #clean up node names to include them in file names   
+ 
+    #if gamut data is present for these skus, merge with grainger data
+    if gws_df.empty == False:
+        gws = 'yes'
+        grainger_df = grainger_df.merge(gws_df, how="left", on=["WS_SKU"])
+        
+        columnTitles = ['WS_SKU', 'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_ID', \
+                        'Category_Name', 'BRAND_NAME', 'PM_CODE', 'Item_Description', 'SEO_Description', \
+                        'WS_Product_Description', 'WS_Merch_Node', 'STEP_Yellow']
+    
+        grainger_df = grainger_df.reindex(columns=columnTitles)
+        outfile = outfile_name (directory_name, quer, grainger_df, search_level, gws)
+
+    else:
+        outfile = outfile_name (directory_name, quer, grainger_df, search_level)
+
+        columnTitles = ['WS_SKU', 'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_ID', \
+                        'Category_Name', 'BRAND_NAME', 'PM_CODE', 'Item_Description', 'SEO_Description', 'STEP_Yellow']
+
+        grainger_df = grainger_df.reindex(columns=columnTitles)
+
+    writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
+      
+    grainger_df.to_excel (writer, sheet_name="Shorties", startrow=0, startcol=0, index=False)
+   
+    # Get the xlsxwriter workbook and worksheet objects.
+    workbook  = writer.book
+    worksheet = writer.sheets['Shorties']
+
+    layout = workbook.add_format()
+    layout.set_text_wrap('text_wrap')
+    layout.set_align('left')
+    
+    col_widths = get_col_widths(grainger_df)
+    col_widths = col_widths[1:]
+    
+    for i, width in enumerate(col_widths):
+        if width > 40:
+            width = 40
+        elif width < 10:
+            width = 10
+        worksheet.set_column(i, i, width) 
+    
+    if gws == 'yes':
+        worksheet.set_column('K:K', 70, layout)
+        worksheet.set_column('L:L', 70, layout)
+    else:
+        worksheet.set_column('K:K', 70, layout)
+        
+    writer.save()    
