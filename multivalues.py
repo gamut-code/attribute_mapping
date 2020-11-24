@@ -51,7 +51,7 @@ gws_values_single="""
         , tax.ancestor_names[1] as "WS_Category_Name"
         , tprod."categoryId" AS "WS_Node_ID"
         , tax.name as "WS_Node_Name"
-        , pi_mappings.step_category_ids[1] AS "STEP_Category_ID"
+        ,     
         , tprod."gtPartNumber" as "WS_SKU"
         , tax_att.id as "WS_Attr_ID"
         , pi_mappings.gws_attribute_ids[1] as "confirmation WS_Attr_ID"
@@ -510,7 +510,7 @@ def data_out(df, node, batch=''):
 
     layout = workbook.add_format()
     layout.set_text_wrap('text_wrap')
-    layout.set_align('left')
+    layout.set_align('    eft')
 
     col_widths = get_col_widths(df_no_dupes)
     col_widths = col_widths[1:]

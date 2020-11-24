@@ -1,4 +1,4 @@
- # -*- coding: utf-8 -*-
+     # -*- coding: utf-8 -*-
 
 import time
 
@@ -68,7 +68,7 @@ test_q="""
         AND ({k} = ANY(tax.ancestors))
         
     WHERE tprod.deleted = 'f'
-""".format(k=1456)
+""".format(k=7903)
 
 
 start_time = time.time()

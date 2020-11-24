@@ -1,25 +1,32 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jul 30 13:32:56 2020
+Created on Wed Sep  9 20:09:28 2020
+
+@author: xcxg109
+"""
+1# -*- coding: utf-8 -*-
+"""
+Created on Tue Apr 16 17:00:31 2019
 
 @author: xcxg109
 """
 
 import pandas as pd
-import numpy as np
 from GWS_query import GWSQuery
+from grainger_query import GraingerQuery
 import file_data_GWS as fd
 import time
 import math
 import settings_NUMERIC as settings
-
+import WS_query_code as q
 
 pd.options.mode.chained_assignment = None
 
+gcom = GraingerQuery()
 gws = GWSQuery()
 
-
-gws_values_single="""
+#NOTE: Not used here, but included to paste into PgAdmin
+gws_attr_values="""
         WITH RECURSIVE tax AS (
                 SELECT  id,
             name,
@@ -42,22 +49,24 @@ gws_values_single="""
             )
 
     SELECT
-          array_to_string(tax.ancestor_names || tax.name,' > ') as "Gamut_PIM_Path"
+          array_to_string(tax.ancestor_names || tax.name,' > ') as "_PIM_Path"
         , tax.ancestors[1] as "WS_Category_ID"  
         , tax.ancestor_names[1] as "WS_Category_Name"
         , tprod."categoryId" AS "WS_Node_ID"
         , tax.name as "WS_Node_Name"
         , tprod."gtPartNumber" as "WS_SKU"
+        , pi_mappings.step_category_ids[1] AS "STEP_Category_ID"
         , tax_att.id as "WS_Attr_ID"
-        , tprodvalue.id
+        , pi_mappings.step_attribute_ids[1] as "STEP_Attr_ID"
         , tax_att.name as "WS_Attribute_Name"
         , tprodvalue.value as "Original_Value"
-        , tprodvalue."valueNormalized" as "Normalized_Value"
-
+        
     FROM  taxonomy_product tprod
 
     INNER JOIN tax
         ON tax.id = tprod."categoryId"
+        AND (4458 = ANY(tax.ancestors))
+        AND tprod.status = 3
 
     INNER JOIN taxonomy_attribute tax_att
         ON tax_att."categoryId" = tprod."categoryId"
@@ -65,71 +74,83 @@ gws_values_single="""
     INNER JOIN  taxonomy_product_attribute_value tprodvalue
         ON tprod.id = tprodvalue."productId"
         AND tax_att.id = tprodvalue."attributeId"
-        AND tprodvalue.deleted = 'N'
         
-    WHERE tax_att."dataType" = 'text'
-        AND {} IN ({})
+    INNER JOIN pi_mappings
+        ON pi_mappings.gws_attribute_ids[1] = tax_att.id
+        AND pi_mappings.gws_category_id = tax_att."categoryId"
+
         """
 
-gws_basic_query="""
-        WITH RECURSIVE tax AS (
-                SELECT  id,
-            name,
-            ARRAY[]::INTEGER[] AS ancestors,
-            ARRAY[]::character varying[] AS ancestor_names
-                FROM    taxonomy_category as category
-                WHERE   "parentId" IS NULL
-                AND category.deleted = false
-
-                UNION ALL
-
-                SELECT  category.id,
-                        category.name,
-                        tax.ancestors || tax.id,
-                        tax.ancestor_names || tax.name
-                FROM    taxonomy_category as category
-                INNER JOIN tax ON category."parentId" = tax.id
-                WHERE   category.deleted = false
-
-            )
-
-    SELECT
-          array_to_string(tax.ancestor_names || tax.name,' > ') as "WS_PIM_Path"
-        , {} AS "WS_Node_ID"                    -- CHEAT INSERT OF 'tprod."categoryId"' HERE SO THAT I HAVE THE 3 ELEMENTS FOR A QUERY
-
-    FROM  taxonomy_product tprod
-
-    INNER JOIN tax
-        ON tax.id = tprod."categoryId"
-        AND ({} = ANY(tax.ancestors)) -- *** TOP LEVEL NODE GETS ADDED HERE ***
-"""
 
 
+def gws_data(grainger_df):
+    #take SKUs from grainger_df and use them to pull GWS data
+    sku_list = grainger_df['Grainger_SKU'].unique().tolist()
+    print('SKUs to query = ', len(sku_list))
+    
+    gws_skus = ", ".join("'" + str(i) + "'" for i in sku_list)
+    gws_df = gws.gws_q(gws_attr_values, 'tprod."gtPartNumber"', gws_skus)
+
+    print('cleaning DF')
+    gws_df['STEP_Attr_ID'] = gws_df['STEP_Attr_ID'].str.replace('_ATTR', '')
+    gws_df['STEP_Attr_ID'] = gws_df['STEP_Attr_ID'].str.replace('_GATTR', '')
+    gws_df['STEP_Attr_ID'] = gws_df['STEP_Attr_ID'].str.strip()
+    gws_df['STEP_Attr_ID'] = gws_df['STEP_Attr_ID'].astype(int)
+
+    return gws_df
 
 
-def get_col_widths(df):
-    #find maximum length of the index column
-    idx_max = max([len(str(s)) for s in df.index.values] + [len(str(df.index.name))])
-    #Then concatenate this to max of the lengths of column name and its values for each column
-    return [idx_max] + [max([len(str(s)) for s in df[col].values] + [len(col)]) for col in df.columns]
+def grainger_data(gws_df):
+    #take SKUs from GWS_df and use them to pull Grainger data    
+    sku_list = gws_df['WS_SKU'].unique().tolist()    
+    print('SKUs to query = ', len(sku_list))
+
+    grainger_skus = ", ".join("'" + str(i) + "'" for i in sku_list)    
+    df = gcom.grainger_q(grainger_attr_query, 'item.MATERIAL_NO', grainger_skus )
+
+    return df
+
+
+def search_type():
+    """choose which type of data to import -- impacts which querries will be run"""
+    while True:
+        try:
+            data_type = input("Search by: \n1. Grainger Blue \n2. Grainger Yellow \n3. GWS \n4. SKU ")
+            if data_type in ['1']:
+                data_type = 'grainger_query'
+                break
+            if data_type in ['2']:
+                data_type = 'yellow'
+                break
+            elif data_type in ['3']:
+                data_type = 'gws_query'
+                break
+            elif data_type in ['4']:
+                data_type = 'sku'
+                break
+        except ValueError:
+            print('Invalid search type')
+        
+    return data_type
 
 
 def process_vals(df):
     """ clean up the sample values column """
-        
-    for row in df.itertuples():
-        # make 2 passes to correct for changes made the first time through
-        
+
+    df['Potential_Replaced_Values'] = ''
+    df['Revised_Value'] = ''
+
+    for row in df.itertuples():        
         search_string = ''
-        pot_value = ''
-        
-        orig_value = df.at[row.Index,'Original_Value']
+
+        orig_value = df.at[row.Index,'Grainger_Attribute_Value']
         orig_value = str(orig_value)
+
         pot_value = orig_value
 
         if '"' in pot_value:
             search_string = search_string+'; '+'"'
-            pot_value = pot_value.replace('"', ' in ')
+            pot_value = pot_value.replace('"', ' in')
 
         if 'min.' in pot_value:
             search_string = search_string+'; '+'min.'
@@ -137,9 +158,10 @@ def process_vals(df):
             
         if 'in.' in pot_value or 'In.' in pot_value:
             search_string = search_string+'; '+'in.'
-            pot_value = pot_value.replace('in.', ' in ')
+            pot_value = pot_value.replace('in.', ' in')
+            pot_value = pot_value.replace('In.', ' in')
 
-        if 'ft.' in pot_value:
+        if 'ft.' in pot_value or 'Ft.' in pot_value:
             search_string = search_string+'; '+'ft.'
             pot_value = pot_value.replace('ft.', 'ft')
 
@@ -147,7 +169,7 @@ def process_vals(df):
             search_string = search_string+'; '+'yd.'
             pot_value = pot_value.replace('yd.', 'yd')
 
-        if 'fl.' in pot_value or 'Ft.' in pot_value:
+        if 'fl.' in pot_value:
             search_string = search_string+'; '+'fl.'
             pot_value = pot_value.replace('fl.', 'fl')
 
@@ -370,6 +392,10 @@ def process_vals(df):
             search_string = search_string+'; '+'LFM'
             pot_value = pot_value.replace('LFM', 'lfm')
 
+        if 'HP' in pot_value or 'hp' in [pot_value]:
+            search_string = search_string+'; '+'HP'
+            pot_value = pot_value.replace('HP', '')
+
         if 'degrees' in pot_value or 'Degrees' in pot_value:
             search_string = search_string+'; '+'degrees'
             pot_value = pot_value.replace('degrees', '°')
@@ -381,49 +407,95 @@ def process_vals(df):
 
         if 'in x' in pot_value:
             pot_value = pot_value.replace('in x', 'in x ')
-            
+
         if 'in )' in pot_value:
             pot_value = pot_value.replace('in )', 'in)')
-
+            
         if '  ' in pot_value:
             pot_value = pot_value.replace('  ', ' ')
-
+            
         if ' °' in pot_value:
             pot_value = pot_value.replace(' °', '°')
 
         if '° ' in pot_value:
             pot_value = pot_value.replace('° ', '°')
-            
+
         search_string = search_string[2:]
         pot_value = pot_value.strip()
-        
+
         df.at[row.Index,'Potential_Replaced_Values'] = search_string
-        df.at[row.Index,'Revised Value'] = pot_value
+        df.at[row.Index,'Revised_Value'] = pot_value
 
     return df    
 
 
-def data_out(ws_df, node, batch=''):
-    ws_df = ws_df[ws_df.Potential_Replaced_Values != '']
-    ws_df = ws_df.sort_values(['Potential_Replaced_Values'], ascending=[True])
-                
-    ws_df['concat'] = ws_df['WS_Attribute_Name'].map(str) + ws_df['Original_Value'].map(str)
-    ws_df['Group_ID'] = ws_df.groupby(ws_df['concat']).grouper.group_info[0] + 1
-    ws_df = ws_df[['Group_ID', 'WS_Category_Name', 'WS_Node_ID', 'WS_Node_Name', 'WS_SKU', 'id', 'WS_Attr_ID', \
-                   'WS_Attribute_Name', 'Original_Value', 'Normalized_Value', 'Potential_Replaced_Values',\
-                   'Revised Value']]
+def yellow_match(grainger_df, yellow_df):
+    #when querying WS first, drop rows from STEP that don't return a result
+    grainger_df.dropna(subset=['Segment_ID'], inplace=True)
 
-    ws_no_dupes = ws_df.drop_duplicates(subset=['WS_Attribute_Name', 'Original_Value'])
-    ws_no_dupes = ws_no_dupes[['Group_ID', 'WS_Node_ID', 'WS_Node_Name', 'WS_SKU', 'WS_Attr_ID', 'WS_Attribute_Name',\
-                               'Original_Value', 'Normalized_Value', 'Potential_Replaced_Values', 'Revised Value']]
-    ws_no_dupes = ws_no_dupes.rename(columns={'WS_SKU':'Example SKU'})
+    grainger_df['Category_ID'] = grainger_df['Category_ID'].astype(int)
+    grainger_df['Grainger_Attr_ID'] = grainger_df['Grainger_Attr_ID'].astype(int)
+
+    grainger_df['concat'] = grainger_df['Category_ID'].map(str) + '_' + grainger_df['Grainger_Attr_ID'].map(str)
+
+    grainger_df['Filter'] = 'N'
+    grainger_df['Table'] = 'N'
+
+    grainger_df = pd.merge(grainger_df, yellow_df, how='left', left_on='concat', right_on='Identifier')
+ 
+    for row in grainger_df.itertuples():
+        f = grainger_df.at[row.Index,'Yellow Folder Category Attribute Rank']
+        t = grainger_df.at[row.Index,'Web Table Rank']
+
+        if math.isnan(f):
+            pass
+        else:
+            grainger_df.at[row.Index,'Filter'] = 'Y'
+
+        if math.isnan(t):
+            pass
+        else:
+            grainger_df.at[row.Index,'Table'] = 'Y'
+            
+#    grainger_df.to_csv('C:/Users/xcxg109/NonDriveFiles/test.csv')
+    
+    return grainger_df
+    
+
+def get_col_widths(df):
+    #find maximum length of the index column
+    idx_max = max([len(str(s)) for s in df.index.values] + [len(str(df.index.name))])
+    #Then concatenate this to max of the lengths of column name and its values for each column
+    
+    return [idx_max] + [max([len(str(s)) for s in df[col].values] + [len(col)]) for col in df.columns]
+
+
+def data_out(final_df, node, batch=''):
+    final_df = final_df[final_df.Potential_Replaced_Values != '']
+    final_df = final_df[final_df.Grainger_Attribute_Name != 'Item']
+    
+    final_df = final_df.sort_values(['Potential_Replaced_Values'], ascending=[True])
+    
+    final_df['concat'] = final_df['Grainger_Attribute_Name'].map(str) + final_df['Grainger_Attribute_Value'].map(str)
+    final_df['Group_ID'] = final_df.groupby(final_df['concat']).grouper.group_info[0] + 1
+    final_df = final_df[['Group_ID', 'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_ID', \
+                'Category_Name', 'WS_Category_ID', 'WS_Category_Name', 'WS_Node_ID', 'WS_Node_Name', 'PM_Code', \
+                'Sales_Status', 'Relationship_MGR_Code', 'Grainger_SKU', 'WS_SKU', 'Filter', 'Table' , 'WS_Attr_ID', \
+                'WS_Attr_Value_ID', 'WS_Attribute_Name', 'WS_Original_Value', 'Grainger_Attr_ID', \
+                'Grainger_Attribute_Name', 'Grainger_Attribute_Value', 'Potential_Replaced_Values', 'Revised_Value']]
+
+    final_no_dupes = final_df.drop_duplicates(subset=['Grainger_Attribute_Name', 'Grainger_Attribute_Value'])
+    final_no_dupes = final_no_dupes [['Group_ID', 'Category_ID', 'Category_Name', 'Grainger_SKU', 'Grainger_Attr_ID', \
+                                      'Grainger_Attribute_Name', 'Grainger_Attribute_Value', \
+                                      'Potential_Replaced_Values', 'Revised_Value']]
+    final_no_dupes = final_no_dupes.rename(columns={'Grainger_SKU':'Example SKU'})
 
     outfile = 'C:/Users/xcxg109/NonDriveFiles/'+str(node)+'_'+str(batch)+'_text_UOMs.xlsx'  
     writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
     workbook  = writer.book
 
-    ws_no_dupes.to_excel (writer, sheet_name="Uniques", startrow=0, startcol=0, index=False)
-    ws_df.to_excel (writer, sheet_name="All Text UOMs", startrow=0, startcol=0, index=False)
+    final_no_dupes.to_excel (writer, sheet_name="Uniques", startrow=0, startcol=0, index=False)
+    final_df.to_excel (writer, sheet_name="All Text UOMs", startrow=0, startcol=0, index=False)
 
     worksheet1 = writer.sheets['Uniques']
     worksheet2 = writer.sheets['All Text UOMs']
@@ -432,7 +504,7 @@ def data_out(ws_df, node, batch=''):
     layout.set_text_wrap('text_wrap')
     layout.set_align('left')
 
-    col_widths = get_col_widths(ws_no_dupes)
+    col_widths = get_col_widths(final_no_dupes)
     col_widths = col_widths[1:]
     
     for i, width in enumerate(col_widths):
@@ -443,10 +515,10 @@ def data_out(ws_df, node, batch=''):
         worksheet1.set_column(i, i, width)
 
     worksheet1.set_column('G:G', 50, layout)
-    worksheet1.set_column('H:H', 50, layout)
+    worksheet1.set_column('H:H', 30, layout)
     worksheet1.set_column('J:J', 50, layout)
 
-    col_widths = get_col_widths(ws_df)
+    col_widths = get_col_widths(final_df)
     col_widths = col_widths[1:]
     
     for i, width in enumerate(col_widths):
@@ -456,155 +528,97 @@ def data_out(ws_df, node, batch=''):
             width = 10
         worksheet2.set_column(i, i, width)
 
-    worksheet2.set_column('J:J', 50, layout)
-    worksheet2.set_column('K:K', 50, layout)
-    worksheet2.set_column('M:M', 50, layout)
+    worksheet2.set_column('V:V', 50, layout)
+    worksheet2.set_column('Y:Y', 50, layout)
+    worksheet2.set_column('AA:AA', 50, layout)
 
     writer.save()
 
 
+# read in grainger data
+print('Choose Grainger L1 file')
+allCATS_df = q.get_att_values()
 
-df = pd.DataFrame()
-ws_df = pd.DataFrame()
-ws_no_dupes = pd.DataFrame()
-data_type = 'gws_query'
+# read in and clean WS data
+print('\nChoose WS file')
+WS_allCATS_df = q.get_att_values()
 
-while True:
-    try:
-        search_level = input("Search by: \n1. Node Group \n2. Single Category \n3. SKU ")
-        if search_level in ['1', 'g', 'G']:
-            search_level = 'group'
-            break
-        elif search_level in ['2', 's', 'S']:
-            search_level = 'single'
-            break
-        elif search_level in ['3', 'sku', 'SKU']:
-            data_type = 'sku'
-            break
-    except ValueError:
-        print('Invalid search type')
-        
-search_data = fd.data_in(data_type, settings.directory_name)
+WS_allCATS_df['STEP_Attr_ID'] = WS_allCATS_df['STEP_Attr_ID'].str.replace('_ATTR', '')
+WS_allCATS_df['STEP_Attr_ID'] = WS_allCATS_df['STEP_Attr_ID'].str.replace('_GATTR', '')
+WS_allCATS_df['STEP_Attr_ID'] = WS_allCATS_df['STEP_Attr_ID'].str.strip()
+WS_allCATS_df.dropna(subset=['STEP_Attr_ID'], inplace=True)
+WS_allCATS_df['STEP_Attr_ID'] = WS_allCATS_df['STEP_Attr_ID'].astype(int)
+
+WS_allCATS_df['STEP_Category_ID'] = WS_allCATS_df['STEP_Category_ID'].str.replace('_DIV1', '')
+WS_allCATS_df['STEP_Category_ID'] = WS_allCATS_df['STEP_Category_ID'].str.strip()
+WS_allCATS_df['STEP_Category_ID'] = WS_allCATS_df['STEP_Category_ID'].astype(int)
 
 print('working...')
+start_time = time.time()
 
-if data_type == 'gws_query':
-    start_time = time.time()
+# read in grainger data
+yellow_df = pd.read_csv('C:/Users/xcxg109/NonDriveFiles/code/yellow.csv')
 
-    if search_level == 'single':
-        for node in search_data:
-            ws_df = gws.gws_q(gws_values_single, 'tprod."categoryId"', node)
+node_ids = allCATS_df['Category_ID'].unique().tolist()
 
-            if ws_df.empty == False:
-                node_ids = ws_df['WS_Node_ID'].unique().tolist()
-                print(node_ids)
+print('number of nodes = ', len(node_ids))
 
-                ws_df['Potential_Replaced_Values'] = ''
-                ws_df['Revised Value'] = ''
-                ws_df['Count'] =1
+num_lists = input('Number of files to split into? ')
+num_lists = int(num_lists)
             
-                ws_df = ws_df.replace(np.nan, '', regex=True)                       
-                ws_df = ws_df.reset_index()
-                ws_df = process_vals(ws_df)
+print('running Nodes in {} batches'.format(num_lists))
 
-                data_out(ws_df, node)
-                print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))    
+size = math.ceil(len(node_ids)/num_lists)
+size = int(size)
 
-            else:
-                print('{} No attribute data'.format(node))
+div_list = [node_ids[i * size:(i + 1) * size] for i in range((len(node_ids) + size - 1) // size)]
 
-    elif search_level == 'group':
-        for node in search_data:
-            df = gws.gws_q(gws_basic_query, 'tprod."categoryId"', node)           
+node = allCATS_df['Segment_ID'].unique()
 
-            print('k = ', node)
-    
-            if df.empty == False:
-                node_ids = df['WS_Node_ID'].unique().tolist()
-                print('number of nodes = ', len(node_ids))
-            
-                num_lists = input('Number of files to split into? ')
-                num_lists = int(num_lists)
-                
-                print('running WS Nodes in {} batches'.format(num_lists))
-
-                size = math.ceil(len(node_ids)/num_lists)
-                size = int(size)
-
-                div_list = [node_ids[i * size:(i + 1) * size] for i in range((len(node_ids) + size - 1) // size)]
-
-                for k in range(0, len(div_list)):
-                    print('\n\nBATCH ', k+1)
-                    count = 1
-                        
-                    ws_df = pd.DataFrame()      # reset ws_df to empty
+for k in range(0, len(div_list)):
+    print('\n\nBATCH ', k+1)
+    count = 1
                     
-                    for j in div_list[k]:
-                        print('batch {} -- {} : {}'.format(k+1, count, j))
-                        temp_df = gws.gws_q(gws_values_single, 'tprod."categoryId"', j)
+    grainger_df = pd.DataFrame()      # reset grainger_df to empty
 
-                        temp_df['Count'] =1
-                        temp_df['Potential_Replaced_Values'] = ''
-                        temp_df['Revised Value'] = ''
+    gws_df = pd.DataFrame()             # reset gws_df to empty
+                
+    for j in div_list[k]:
+        print('batch {} -- {} : {}'.format(k+1, count, j))
+        temp_df = allCATS_df.loc[allCATS_df['Category_ID']== j]
 
-                        count = count + 1
-                            
-                        ws_df = pd.concat([ws_df, temp_df], axis=0, sort=False) #add prepped df for this gws node to the final df
+        temp_df['Count'] =1
+        temp_df['Potential_Replaced_Values'] = ''
+        temp_df['Revised Value'] = ''
 
-                    ws_df = ws_df.replace(np.nan, '', regex=True)                       
-                    ws_df = ws_df.reset_index()
-                    ws_df = process_vals(ws_df)
-
-                    data_out(ws_df, node, k+1)
-                    print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))
+        count = count + 1
+                    
+        if temp_df.empty == False:
+            gws_df = WS_allCATS_df.loc[WS_allCATS_df['STEP_Category_ID']== j]
+    
+            if gws_df.empty == False:
+                temp_df = pd.merge(temp_df, gws_df, how="left", left_on=['Grainger_SKU', 'Grainger_Attr_ID'], \
+                                                                right_on=['WS_SKU', 'STEP_Attr_ID'])
 
             else:
-                print('{} No attribute data'.format(node))
-
-elif data_type == 'sku':
-    start_time = time.time()
-
-    if len(search_data)>4000:
-        num_lists = round(len(search_data)/4000, 0)
-        num_lists = int(num_lists)
+                print('No GWS SKUs')
     
-        if num_lists == 1:
-            num_lists = 2
-        print('running SKUs in {} batches'.format(num_lists))
+            grainger_df = pd.concat([grainger_df, temp_df], axis=0, sort=False)
 
-        size = round(len(search_data)/num_lists, 0)
-        size = int(size)
+        else:
+            print('{} No attribute data'.format(node))                
 
-        div_lists = [search_data[i * size:(i + 1) * size] for i in range((len(search_data) + size - 1) // size)]
+    grainger_df = yellow_match(grainger_df, yellow_df)
 
-        for k  in range(0, len(div_lists)):
-            print('batch {} of {}'.format(k+1, num_lists))
-            sku_str = ", ".join("'" + str(i) + "'" for i in div_lists[k])
+#    grainger_df.to_csv('C:/Users/xcxg109/NonDriveFiles/test.csv')
+    grainger_df = grainger_df[['Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_ID', \
+                               'Category_Name', 'WS_Category_ID', 'WS_Category_Name', 'WS_Node_ID', \
+                               'WS_Node_Name', 'PM_Code', 'Sales_Status', 'Relationship_MGR_Code', \
+                               'Grainger_SKU', 'WS_SKU', 'Filter', 'Table' , 'WS_Attr_ID', 'WS_Attr_Value_ID', \
+                               'WS_Attribute_Name', 'WS_Original_Value', 'Grainger_Attr_ID', \
+                               'Grainger_Attribute_Name', 'Grainger_Attribute_Value']]
 
-            temp_sku_df = gws.gws_q(gws_values_single, 'tprod."gtPartNumber"', sku_str)
-            df = pd.concat([df, temp_sku_df], axis=0, sort=False) 
+    grainger_df = process_vals(grainger_df)
 
-    else:
-        sku_str = ", ".join("'" + str(i) + "'" for i in search_data)
-        df = gws.gws_q(gws_values_single, 'tprod."gtPartNumber"', sku_str)
-        
-
-    if df.empty == False:
-        atts = df['WS_Attr_ID'].unique()
-
-        df['Potential_Replaced_Values'] = ''
-        df['Revised Value'] = ''
-
-        for attribute in atts:
-            temp_df = df.loc[df['WS_Attr_ID']== attribute]
-            temp_df = process_vals(temp_df)
-                
-            ws_df = pd.concat([ws_df, temp_df], axis=0, sort=False) #add prepped df for this gws node to the final df
-                
-        data_out(ws_df, ws_no_dupes, 'sku')
-
-    else:
-        print('{} No attribute data'.format(node))
-
-    print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))    
-
+    data_out(grainger_df, node, k+1)
+    print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))

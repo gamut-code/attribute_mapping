@@ -51,6 +51,46 @@ def search_type():
         
     return data_type
 
+
+def values_search_type():
+    """choose which type of data to import -- impacts which querries will be run"""
+    while True:
+        try:
+            data_type = input("Search by: \n1. Blue (node)\n2. Yellow\n3. SKU\n4. Other ")
+            if data_type in ['1', 'node', 'Node', 'NODE', 'blue', 'Blue', 'BLUE', 'b', 'B']:
+                data_type = 'grainger_query'
+                break
+            elif data_type in ['2', 'yellow', 'Yellow', 'YELLOW', 'y', 'Y']:
+                data_type = 'yellow'
+                break
+            elif data_type in ['3', 'sku', 'Sku', 'SKU', 's', 'S']:
+                data_type = 'sku'
+                break
+            elif data_type in ['4', 'other', 'Other', 'OTHER', 'o', 'O']:
+                data_type = 'other'
+                break
+        except ValueError:
+            print('Invalid search type')
+    
+    if data_type == 'other':
+        while True:
+            try:
+                data_type = input ('Query Type?\n1. Attribute Value\n2. Attribute Name\n3. Supplier ID ')
+                if data_type in ['attribute value', 'Attribute Value', 'value', 'Value', 'VALUE', '1']:
+                    data_type = 'value'
+                    break
+                elif data_type in ['attribute name', 'Attribute Name', 'name', 'Name', 'NAME', '2']:
+                    data_type = 'name'
+                    break
+                if data_type in ['supplier id', 'supplier ID', 'Supplier ID', 'SUPPLIER ID', 'Supplier id', 'ID', 'id', '3']:
+                    data_type = 'supplier'
+                    break
+            except ValueError:
+                print('Invalid search type')
+    
+    return data_type
+
+
 def blue_search_level():
     """If data type is node (BLUE data), ask for segment/family/category level for pulling the query. This output feeds directly into the query"""
     while True:
@@ -77,23 +117,42 @@ def data_in(data_type, directory_name):
     
     if data_type == 'grainger_query':
         search_data = input('Input Blue node ID or hit ENTER to read from file: ')
+    elif data_type == 'yellow':
+        search_data = input('Input Yellow node ID or hit ENTER to read from file: ')
     elif data_type == 'gws_query':
         search_data = input ('Input GWS terminal node ID or ENTER to read from file: ')
     elif data_type == 'sku':
         search_data = input ('Input SKU or hit ENTER to read from file: ')
+    elif data_type == 'value':
+        search_data = input ('Input attribute value to search for: ')
+    elif data_type == 'name':
+        search_data = input ('Input attribute name to search for: ')
+    elif data_type == 'supplier':
+        search_data = input ('Input Supplier ID to search for: ')
+    elif data_type == 'uom_group':
+        search_data = input ('Input UOM Group ID to search for: ')
+    elif data_type == 'uom_val':
+        search_data = input ('Input UOM Value to search for: ')
         
     if search_data != "":
+        search_data = search_data.strip()
         search_data = [search_data]
         return search_data
+
     else:
         file_data = settings.get_file_data()
 
-        if data_type == 'grainger_query' or data_type == 'gws_query':
+        if data_type == 'sku':
+            search_data = [row[0] for row in file_data[1:]]
+            return search_data
+        elif data_type == 'yelow':
+            search_data = [str(row[0]) for row in file_data[1:]]
+            return search_data            
+        else:
             search_data = [int(row[0]) for row in file_data[1:]]
             return search_data
-        elif data_type == 'sku':
-            search_data = [row[0] for row in file_data[1:]]
-            return search_data        
+
+
 
 def modify_name(df, replace_char, replace_with):
     return df.str.replace(replace_char, replace_with)
@@ -114,11 +173,11 @@ def outfile_name (directory_name, quer, df, search_level, gws='no'):
     else:   
         if gws == 'yes':
             if search_level == 'cat.SEGMENT_ID':    #set directory path and name output file
-                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,1], df.iloc[0,2], quer)
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,2], df.iloc[0,3], quer)
             elif search_level == 'cat.FAMILY_ID':
-                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,3], df.iloc[0,4], quer)
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,6], df.iloc[0,7], quer)
             else:
-                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,0], df.iloc[0,1], quer)
 
         elif quer == 'CHECK':
             if search_level == 'cat.SEGMENT_ID':
@@ -139,6 +198,14 @@ def outfile_name (directory_name, quer, df, search_level, gws='no'):
                 outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,1], df.iloc[0,2], quer)
             else:
                 outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,5], df.iloc[0,6], quer)
+            
+        elif quer == 'HIER':
+            if search_level == 'cat.SEGMENT_ID':
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,2], df.iloc[0,3], quer)
+            elif search_level == 'cat.FAMILY_ID':
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,4], df.iloc[0,5], quer)                
+            if search_level == 'cat.CATEGORY_ID':
+                outfile = Path(directory_name)/"{} {} {}.xlsx".format(df.iloc[0,6], df.iloc[0,7], quer)                
             
         else:
             if search_level == 'cat.CATEGORY_ID':
@@ -233,6 +300,64 @@ def data_check_out(directory_name, grainger_df, stats_df, quer, search_level, ws
     worksheet1.set_column('M:M', 60, layout)
     worksheet1.set_column('N:N', 60, layout)
     worksheet1.set_column('O:O', 60, layout)
+
+    writer.save()
+
+
+#output for attribute values for Grainger
+def attr_data_out(directory_name, df, df_stats, df_fill, search_level):
+    # Create a Pandas Excel writer using XlsxWriter as the engine.
+    df.drop(columns=['Count'], inplace=True)
+    
+    quer = 'ATTRIBUTE'
+    
+    columnTitles = ['Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_ID', 'Category_Name', \
+                    'PM_Code', 'Sales_Status', 'RELATIONSHIP_MANAGER_CODE', 'PIM_Path', 'WS_Category_ID', \
+                    'WS_Category_Name', 'WS_Node_ID', 'WS_Node_Name', 'Grainger_SKU', 'WS_SKU', 'Grainger_Attr_ID', \
+                    'Attribute_Value_ID', 'Data_Type', 'Grainger_Attribute_Name', 'WS_Attribute_Name',\
+                    'Original_Value', 'Original_Unit', 'Normalized_Value', 'Normalized_Unit', \
+                    'Grainger_Attribute_Value', 'WS_Value', 'STEP-WS_Match?', 'Potential_Replaced_Values', \
+                    'Revised_Value']
+
+    df = df.reindex(columns=columnTitles)
+
+    outfile = outfile_name (directory_name, quer, df, search_level)
+
+    writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
+    
+    # Write each dataframe to a different worksheet.
+    df_stats.to_excel(writer, sheet_name='Stats', startrow=1, startcol=0)
+    df_fill.to_excel(writer, sheet_name='Stats', startrow =5, startcol=5, index=False)
+    df.to_excel(writer, sheet_name='Data', index=False)
+    
+    # Get the xlsxwriter workbook and worksheet objects.
+    workbook  = writer.book
+    worksheet1 = writer.sheets['Stats']
+    worksheet2 = writer.sheets['Data']
+    
+    layout = workbook.add_format()
+    layout.set_text_wrap('text_wrap')
+    layout.set_align('left')
+    
+    num_layout = workbook.add_format()
+    num_layout.set_num_format('##0.00')
+
+    #setup display for Stats sheet
+    worksheet1.set_column('A:A', 40, layout)
+    worksheet1.set_column('B:B', 60, layout)
+    worksheet1.set_column('F:F', 40, layout)
+    worksheet1.set_column('G:G', 15, num_layout)
+    worksheet1.set_column('H:H', 20, layout)
+    
+    col_widths = get_col_widths(df)
+    col_widths = col_widths[1:]
+    
+    for i, width in enumerate(col_widths):
+        if width > 40:
+            width = 40
+        elif width < 10:
+            width = 10
+        worksheet2.set_column(i, i, width) 
 
     writer.save()
 
@@ -366,3 +491,32 @@ def shorties_data_out(directory_name, grainger_df, gws_df, search_level):
         worksheet.set_column('K:K', 70, layout)
         
     writer.save()    
+    
+    
+def hier_data_out(directory_name, df, quer, stat, search_level):
+
+    columnTitles = ['Grainger_SKU', 'WS_SKU', 'PIM_ID', 'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', \
+                    'Category_ID', 'Category_Name', 'Gcom_Yellow', 'Gcom_Web_Parent', 'GWS_PIM_Path', \
+                    'GWS_Category_ID', 'GWS_Category_Name', 'GWS_Node_ID', 'GWS_Node_Name', 'PM_CODE', \
+                    'SALES_STATUS', 'RELATIONSHIP_MANAGER_CODE']    
+    df = df.reindex(columns=columnTitles)
+
+    outfile = outfile_name(directory_name, quer, df, search_level, stat)
+  
+    writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
+      
+    df.to_excel (writer, sheet_name="Hierarchy", startrow=0, startcol=0, index=False)
+   
+    worksheet = writer.sheets['Hierarchy']
+    
+    col_widths = get_col_widths(df)
+    col_widths = col_widths[1:]
+    
+    for i, width in enumerate(col_widths):
+        if width > 40:
+            width = 40
+        elif width < 10:
+            width = 10
+        worksheet.set_column(i, i, width) 
+        
+    writer.save()

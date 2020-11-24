@@ -729,10 +729,10 @@ def grainger_process(grainger_df, grainger_all, uom_df, lov_df, lov_list, gamut_
 
     if grainger_all.empty==False:
     
-    # for non-text rows, clean up UOMs in sample value column
-    for row in grainger_df.itertuples():
-        potential_uoms = str(row.Potential_UOMs)
-        dt = str(row.Recommended_Data_Type)
+        # for non-text rows, clean up UOMs in sample value column
+        for row in grainger_df.itertuples():
+            potential_uoms = str(row.Potential_UOMs)
+            dt = str(row.Recommended_Data_Type)
 
         if dt != 'text':
             grainger_df = process_sample_vals(grainger_df, row, potential_uoms)

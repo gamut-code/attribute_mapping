@@ -2,6 +2,12 @@
 """
 Created on Tue Mar  5 12:40:34 2019
 
+NUMERIC_ATTS.py
+
+Original STEP to GWS file designed to predict how data should look when transferring to the new WS through ETL.
+Predicted whether attributes should become numbers and which UOMs they should use, based on existing values in the 
+STEP attrbiute values at the category level.
+
 @author: xcxg109
 """
 import pandas as pd

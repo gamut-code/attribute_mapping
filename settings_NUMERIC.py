@@ -12,7 +12,7 @@ import os
 
 def get_file_data():
     #ask for user input for which file to read
-    file_name = askopenfilename(initialdir = directory_name)
+    file_name = askopenfilename(initialdir = att_directory)
     file_data = [re.split('\s+', i.strip('\n')) for i in open(file_name)]
     return file_data
 

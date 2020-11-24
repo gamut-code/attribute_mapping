@@ -65,62 +65,37 @@ category_query="""
             WHERE {} IN ({})
             """
             
-def gws_data(grainger_df, lookup_df):
+def gws_data(grainger_df):
     gws_data = pd.DataFrame()    
+    sku_list = grainger_df['Grainger_SKU'].unique().tolist()
+    print('SKUs = ', len(sku_list))
 
     gws_seg = grainger_df['Segment_Name'].unique().tolist()
-#    if len(sku_list)>7000:
-#        num_lists = round(len(sku_list)/7000, 0)
-#        num_lists = int(num_lists)
+    if len(sku_list)>7000:
+        num_lists = round(len(sku_list)/7000, 0)
+        num_lists = int(num_lists)
 
-#        if num_lists == 1:
-#            num_lists = 2
+        if num_lists == 1:
+            num_lists = 2
         
-#        print('running GWS SKUs in {} batches'.format(num_lists))
+        print('running GWS SKUs in {} batches'.format(num_lists))
 
-#        size = round(len(sku_list)/num_lists, 0)
-#        size = int(size)
+        size = round(len(sku_list)/num_lists, 0)
+        size = int(size)
 
-#        div_lists = [sku_list[i * size:(i + 1) * size] for i in range((len(sku_list) + size - 1) // size)]
+        div_lists = [sku_list[i * size:(i + 1) * size] for i in range((len(sku_list) + size - 1) // size)]
 
-#        for k  in range(0, len(div_lists)):
-    for k in gws_seg:
-        print('pulling SKUs for ', k)
-        
-        l1_df = lookup_df.loc[lookup_df['Segment_Name']== k]
-        l1_id = l1_df['GWS_L1'].unique()
-        
-#            print('batch {} of {}'.format(k+1, num_lists))
-#            gws_skus = ", ".join("'" + str(i) + "'" for i in div_lists[k])
+        for k  in range(0, len(div_lists)):
+            print('batch {} of {}'.format(k+1, num_lists))
+            gws_skus = ", ".join("'" + str(i) + "'" for i in div_lists[k])
 
-#            temp_gws_df = gws.gws_q(gws_hier_query, 'tprod."gtPartNumber"', gws_skus)
-#        temp_gws_df = gws.gws_q(gws_hier_query, 'tprod."categoryId"', k)
-        nodes_df = gws.gws_q(gws_basic_query, 'tprod."categoryId"', l1_id[0])           
-        
-        if nodes_df.empty == False:
-            node_ids = nodes_df['WS_Node_ID'].unique().tolist()
-            print('number of nodes = ', len(node_ids))
-
-            for j in node_ids:
-                temp_gws_df = gws.gws_q(gws_hier_query, 'tprod."categoryId"', j)    
-
-                gws_data = pd.concat([gws_data, temp_gws_df], axis=0)
-            
-#        gws_data['Count'] = 1
-#            gws_data .to_csv('C:/Users/xcxg109/NonDriveFiles/test_hier.csv')
-                
-#        gws_data = pd.DataFrame(gws_data.groupby(['GWS_Category_ID','GWS_Category_Name','GWS_Node_ID', \
-#                                                  'GWS_Node_Name','WS_SKU','STEP_Category_ID'])['Count'].sum())
-
-#        gws_data = gws_df.reset_index()
-#        gws_data = gws_df.drop(['Count'], axis=1)
-
-#            gws_data = pd.concat([gws_data, temp_gws_df], axis=0, sort=False)
+            temp_gws_df = gws.gws_q(gws_hier_query, 'tprod."gtPartNumber"', gws_skus)
+            gws_data = pd.concat([gws_data, temp_gws_df], axis=0, sort=False)
     
- #   else:
-#        gws_skus = ", ".join("'" + str(i) + "'" for i in sku_list)
+    else:
+        gws_skus = ", ".join("'" + str(i) + "'" for i in sku_list)
     
-#        gws_data = gws.gws_q(gws_hier_query, 'tprod."gtPartNumber"', gws_skus)
+        gws_data = gws.gws_q(gws_hier_query, 'tprod."gtPartNumber"', gws_skus)
 
     return gws_data
 
@@ -158,8 +133,6 @@ def skus_to_pull():
 gws_df = pd.DataFrame()
 grainger_df = pd.DataFrame()
 
-# read in grainger data
-lookup_df = pd.read_csv('C:/Users/xcxg109/NonDriveFiles/code/L1_lookup_table.csv')
 
 quer = 'HIER'
 gws_stat = 'no'
@@ -234,8 +207,7 @@ if data_type == 'gws_query':
         
 elif data_type == 'grainger_query':
     for k in search_data:
-        print('K = ', k)
-        
+        print ('K = ', k)
         if sku_status == 'filtered':
 #            grainger_df = gcom.grainger_q(grainger_basic_query, search_level, k)
             grainger_df = gcom.grainger_q(STEP_ETL_query, search_level, k)
@@ -245,7 +217,7 @@ elif data_type == 'grainger_query':
             
         if grainger_df.empty == False:
 #            grainger_df.to_csv('C:/Users/xcxg109/NonDriveFiles/test_hier.csv')
-            gws_df = gws_data(grainger_df, lookup_df)            
+            gws_df = gws_data(grainger_df)            
 
             if gws_df.empty == False:
                 gws_stat = 'yes'
@@ -259,36 +231,13 @@ elif data_type == 'grainger_query':
            
 elif data_type == 'sku':
     search_level = 'SKU'
-
-    if len(search_data)>4000:
-        num_lists = round(len(search_data)/4000, 0)
-        num_lists = int(num_lists)
-
-        if num_lists == 1:
-            num_lists = 2
-        
-        print('running GWS SKUs in {} batches'.format(num_lists))
-
-        size = round(len(search_data)/num_lists, 0)
-        size = int(size)
-
-        div_lists = [search_data[i * size:(i + 1) * size] for i in range((len(search_data) + size - 1) // size)]
-
-        for k  in range(0, len(div_lists)):
-            print('batch {} of {}'.format(k+1, num_lists))
-            gws_skus = ", ".join("'" + str(i) + "'" for i in div_lists[k])
-
-            temp_gws = gws.gws_q(gws_hier_query, 'tprod."gtPartNumber"', gws_skus)
-            gws_df = pd.concat([gws_df, temp_gws], axis=0, sort=False)
-
-        fd.hier_data_out(settings.directory_name, gws_df, quer, gws_stat, search_level)
-    
-    else:
-        gws_skus = ", ".join("'" + str(i) + "'" for i in search_data)
-        gws_df = gws.gws_q(gws_hier_query, 'tprod."gtPartNumber"', gws_skus)
-
+    sku_str = ", ".join("'" + str(i) + "'" for i in search_data)
+    grainger_df = gcom.grainger_q(grainger_basic_query, 'item.MATERIAL_NO', sku_str)
+    if grainger_df.empty == False:
+        gws_df = gws_data(grainger_df)    
         if gws_df.empty == False:
-            gws_stat = 'yes'
-            fd.hier_data_out(settings.directory_name, gws_df, quer, gws_stat, search_level)
-
-print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))
+            gamut = 'yes'
+            grainger_df = grainger_df.merge(gws_df, how="left", on=["Grainger_SKU"])
+            fd.data_out(settings.directory_name, grainger_df, quer, search_level)
+    else:
+        print('No SKU data for ', sku_str)
