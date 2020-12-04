@@ -3,6 +3,9 @@
 Created on Mon Nov 16 15:24:21 2020
 
 @author: xcxg109
+
+This file looks at all multivalues in the PIM workstation, pulls the STEP equivalent, and then searches for 
+meet the conditions for review found in the process_vals module.
 """
 
 import pandas as pd

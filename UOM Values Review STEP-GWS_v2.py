@@ -5,6 +5,7 @@ Created on Tue Mar  5 12:40:34 2019
 @author: xcxg109
 """
 import pandas as pd
+import numpy as np
 import re
 import time
 import math
@@ -420,17 +421,9 @@ def compare_values(df):
     return df
 
 
-def data_out(final_df, node, node_name, batch=''):    
-    final_df['Potential_Replaced_Values'] = final_df['Potential_Replaced_Values'].str.replace('degrees', '')
-    
-    # drop rows where STEP and WS data match and we are not recommending a change
-    final_df = final_df[(final_df['STEP-WS_Match?'] == 'N') | (final_df['Potential_Replaced_Values'] != '')]
-    
-    final_df = final_df[final_df.Grainger_Attribute_Name != 'Item']
-
-    final_df = final_df.sort_values(['Potential_Replaced_Values'], ascending=[True])
-    
+def data_out(final_df, node, node_name, batch=''):
     final_df['concat'] = final_df['Grainger_Attribute_Name'].map(str) + final_df['Grainger_Attribute_Value'].map(str)
+
     final_df['Group_ID'] = final_df.groupby(final_df['concat']).grouper.group_info[0] + 1
 
     final_df = final_df[['Group_ID', 'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_ID', \
@@ -496,14 +489,19 @@ def data_out(final_df, node, node_name, batch=''):
     writer.save()
 
 
+
+grainger_df = pd.DataFrame()      # reset grainger_df to empty
+gws_df = pd.DataFrame()             # reset gws_df to empty
+temp_df_2 = pd.DataFrame()
+
 # read in grainger data
 print('Choose Grainger L1 file')
 allCATS_df = q.get_att_values()
 
 # read in and clean WS data
 print('\nChoose WS file')
-WS_allCATS_df = q.get_att_values()
-#WS_allCATS_df = pd.read_csv('C:/Users/xcxg109/NonDriveFiles/reference/WS MACHINING.csv')
+#WS_allCATS_df = q.get_att_values()
+WS_allCATS_df = pd.read_csv('C:/Users/xcxg109/NonDriveFiles/reference/WS PAINT.csv')
 
 WS_allCATS_df['STEP_Attr_ID'] = WS_allCATS_df['STEP_Attr_ID'].str.replace('_ATTR', '')
 WS_allCATS_df['STEP_Attr_ID'] = WS_allCATS_df['STEP_Attr_ID'].str.replace('_GATTR', '')
@@ -519,64 +517,105 @@ print('working...')
 start_time = time.time()
 
 node_ids = allCATS_df['Category_ID'].unique().tolist()
-
 print('number of nodes = ', len(node_ids))
-
-num_lists = input('Number of files to split into? ')
-num_lists = int(num_lists)
-
-print('running Nodes in {} batches'.format(num_lists))
-
-size = math.ceil(len(node_ids)/num_lists)
-size = int(size)
-
-div_list = [node_ids[i * size:(i + 1) * size] for i in range((len(node_ids) + size - 1) // size)]
 
 node = allCATS_df['Segment_ID'].unique()
 node = node[0]
-
+    
 node_name = allCATS_df['Segment_Name'].unique()
 node_name = node_name[0]
 
-for k in range(0, len(div_list)):
-    print('\n\nBATCH ', k+1)
-    count = 1
-    
-    grainger_df = pd.DataFrame()      # reset grainger_df to empty
-    gws_df = pd.DataFrame()             # reset gws_df to empty
+count = 1
 
-    for j in div_list[k]:
-        print('batch {} -- {} : {}'.format(k+1, count, j))
-        temp_df = allCATS_df.loc[allCATS_df['Category_ID']== j]
+for j in node_ids:  
+    print('{} : {}'.format(count, j))
+    temp_df = allCATS_df.loc[allCATS_df['Category_ID']== j]
  
-        temp_df['Count'] =1
-        temp_df['Potential_Replaced_Values'] = ''
-        temp_df['Revised Value'] = ''
+    temp_df['Count'] =1
+    temp_df['Potential_Replaced_Values'] = ''
+    temp_df['Revised Value'] = ''
 
-        count = count + 1
+    count = count + 1
                     
-        if temp_df.empty == False:    
-            gws_df = WS_allCATS_df.loc[WS_allCATS_df['STEP_Category_ID']== j]
+    if temp_df.empty == False:    
+        gws_df = WS_allCATS_df.loc[WS_allCATS_df['STEP_Category_ID']== j]
  
-            if gws_df.empty == False:
-                gws_df = gws_values(gws_df)
+        if gws_df.empty == False:
+            gws_df = gws_values(gws_df)
 
-                temp_df = pd.merge(temp_df, gws_df, how="left", left_on=['Grainger_SKU', 'Grainger_Attr_ID'], \
-                                                                right_on=['WS_SKU', 'STEP_Attr_ID'])
-
-            else:
-                temp_df['Multivalue?'] = ''
-                temp_df['WS_Value'] = ''
-
-                print('No GWS SKUs')
-
-            print('Node {} rows = {}'.format(j, len(temp_df)))
-            temp_df = compare_values(temp_df)   # process values before adding to the final           
-            grainger_df = pd.concat([grainger_df, temp_df], axis=0, sort=False)
+            temp_df = pd.merge(temp_df, gws_df, how="left", left_on=['Grainger_SKU', 'Grainger_Attr_ID'], \
+                                                            right_on=['WS_SKU', 'STEP_Attr_ID'])
 
         else:
-            print('{} No attribute data'.format(node))                
-                            
-    data_out(grainger_df, node, node_name, k+1)
+            temp_df['Multivalue?'] = ''
+            temp_df['WS_Value'] = ''
+
+            print('No GWS SKUs')
+
+        print('{} : Node {} rows = {}'.format(count, j, len(temp_df)))
             
-    print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))
+        # split large df into 2 and print separately
+        if len(temp_df) > 40000:
+            count = 1
+            num_lists = round(len(temp_df)/40000, 0)
+            num_lists = int(num_lists)
+
+            if num_lists == 1:
+                num_lists = 2
+                
+            print('processing values in {} batches'.format(num_lists))
+
+            split_df = np.array_split(temp_df, num_lists)
+
+            for object in split_df:
+                print('iteration {} of {}'.format(count, num_lists))
+                chunk_df = compare_values(object)
+                temp_df_2 = pd.concat([temp_df_2, chunk_df], axis=0, sort=False)
+
+                count += 1
+            temp_df = temp_df_2
+
+        else:
+            temp_df = compare_values(temp_df)   # process values before adding to the final
+                
+        grainger_df = pd.concat([grainger_df, temp_df], axis=0, sort=False)
+
+    else:
+        print('{} No attribute data'.format(node))                
+
+
+grainger_df['Potential_Replaced_Values'] = grainger_df['Potential_Replaced_Values'].str.replace('degrees', '')
+
+# drop rows where STEP and WS data match and we are not recommending a change
+grainger_df = grainger_df[(grainger_df['STEP-WS_Match?'] == 'N') | (grainger_df['Potential_Replaced_Values'] != '')]
+grainger_df = grainger_df[grainger_df.Grainger_Attribute_Name != 'Item']
+
+grainger_df = grainger_df.sort_values(['Potential_Replaced_Values'], ascending=[True])
+
+if len(grainger_df) > 45000:
+    count = 1
+
+    # split into multiple dfs of 40K rows, creating at least 2
+    num_lists = round(len(grainger_df)/45000, 0)
+    num_lists = int(num_lists)
+
+    if num_lists == 1:
+        num_lists = 2
+    
+    print('creating {} output files'.format(num_lists))
+
+    # np.array_split creates [num_lists] number of chunks, each referred to as an object in a loop
+    split_df = np.array_split(grainger_df, num_lists)
+
+    for object in split_df:
+        print('iteration {} of {}'.format(count, num_lists))
+        
+        data_out(object, node, node_name, count)
+
+        count += 1
+    
+# if original df < 30K rows, process the entire thing at once
+else:
+    data_out(grainger_df, node, node_name, count)
+
+print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))

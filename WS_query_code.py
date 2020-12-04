@@ -11,8 +11,8 @@ import re
 import settings_NUMERIC as settings
 
 """CODE TO SWITCH BETWEEN ORIGINAL FLAVOR GAMUT AND GWS"""
-from gamut_query import GamutQuery
-#from GWS_query import GWSQuery
+#from gamut_query import GamutQuery
+from GWS_query import GWSQuery
 #from GWS_TOOLBOX_query import GWSQuery
 
 """ """
@@ -21,8 +21,8 @@ from grainger_query import GraingerQuery
 from queries_NUMERIC import gws_basic_query, STEP_ETL_query, gamut_basic_query, gamut_attr_query
 
 
-gamut = GamutQuery()
-#gws = GWSQuery()
+#gamut = GamutQuery()
+gws = GWSQuery()
 gcom = GraingerQuery()
 
 

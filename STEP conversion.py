@@ -6,6 +6,7 @@ Created on Tue Sep 22 11:50:27 2020
 """
 
 import pandas as pd
+import numpy as np
 import settings_NUMERIC as settings
 import time
 
@@ -33,6 +34,36 @@ def get_col_widths(df):
     #Then concatenate this to max of the lengths of column name and its values for each column
     
     return [idx_max] + [max([len(str(s)) for s in df[col].values] + [len(col)]) for col in df.columns]
+
+
+def process_vals(info_df, process_df, updatedVal_col):
+    # transpose values for each chunk of the dataframe
+    # iterate through the info_df and if we already have an entry for the SKU, add the attribute ID to that entry
+    # otherwise, create a new entry with SKU and attribute ID
+    
+    for row in info_df.itertuples():
+        att_name = info_df.at[row.Index, 'Grainger_Attr_ID']
+        att_name = str(att_name)
+        att_name = att_name.strip()
+
+        att_value = info_df.at[row.Index, updatedVal_col[0]]
+        att_value = str(att_value)
+        att_value = att_value.strip()
+    
+        sku = info_df.at[row.Index, 'Grainger_SKU']
+        sku = str(sku)
+        sku = sku.strip()
+
+        temp_df = process_df.loc[process_df['<ID>']== sku]
+
+        if temp_df.empty == False:
+            temp_df[att_name] = att_value
+            process_df = process_df.combine_first(temp_df)
+         
+        else:
+            process_df = process_df.append({'<ID>': sku, att_name: att_value}, ignore_index=True)
+
+    return process_df
 
 
 def data_out(final_df):
@@ -65,6 +96,8 @@ df = get_att_values()
 print('working...')
 start_time = time.time()
 
+temp_df = pd.DataFrame()
+
 # filter where column names and values can vary
 update_col = [col for col in df.columns if 'Update?' in col]
 if not update_col:
@@ -72,11 +105,18 @@ if not update_col:
 if not update_col:
     update_col = [col for col in df.columns if 'Use Update' in col]
 
+updatedVal_col = [col for col in df.columns if 'Udpated Value' in col]
+if not updatedVal_col: 
+    updatedVal_col = [col for col in df.columns if 'Updated_Value' in col]
+    
+    print('updated value column = ', updatedVal_col[0])
+
+
 # filter where we have a specific column name and variable
 filter_vals = ['Y', 'y']
 df = df[df[update_col[0]].isin(filter_vals)]
 
-df = df[['Grainger_SKU','Grainger_Attr_ID','Updated Value']]
+df = df[['Grainger_SKU','Grainger_Attr_ID', updatedVal_col[0]]]
 
 df['Grainger_Attr_ID'] = df['Grainger_Attr_ID'].astype(str)
 df['Grainger_Attr_ID'] = df['Grainger_Attr_ID']+'_ATTR'
@@ -88,27 +128,33 @@ column_names.insert(0, '<ID>')
 step_df = pd.DataFrame(columns=column_names)
 print('transposing {} values', len(df))
 
-for row in df.itertuples():
-    att_name = df.at[row.Index, 'Grainger_Attr_ID']
-    att_name = str(att_name)
-    att_name = att_name.strip()
+if len(df) > 3000:
+    count = 1
 
-    att_value = df.at[row.Index, 'Updated Value']
-    att_value = str(att_value)
-    att_value = att_value.strip()
-    
-    sku = df.at[row.Index, 'Grainger_SKU']
-    sku = str(sku)
-    sku = sku.strip()
+    # split into multiple dfs of 4K rows, creating at least 2
+    num_lists = round(len(df)/3000, 0)
+    num_lists = int(num_lists)
 
-    temp_df = step_df.loc[step_df['<ID>']== sku]
+    if num_lists == 1:
+        num_lists = 2
 
-    if temp_df.empty == False:
-        temp_df[att_name] = att_value
-        step_df = step_df.combine_first(temp_df)
-         
-    else:
-        step_df = step_df.append({'<ID>': sku, att_name: att_value}, ignore_index=True)
+    print('processing values in {} batches'.format(num_lists))
+
+    # np.array_split creates [num_lists] number of chunks, each referred to as an object in a loop
+    split_df = np.array_split(df, num_lists)
+
+    for object in split_df:
+        print('iteration {} of {}'.format(count, num_lists))
+        
+        # step_df at this point is an empty shell used to transpose SKUs and attribute data
+        step_df = process_vals(object, step_df, updatedVal_col)
+#        step_df = pd.concat([step_df, temp_df], axis=0, sort=False)
+
+        count += 1
+                    
+# if original df < 4K rows, process the entire thing at once
+else:
+    step_df = process_vals(df, step_df, updatedVal_col)
 
 data_out(step_df)
 print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))
