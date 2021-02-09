@@ -7,7 +7,7 @@ Created on Tue Apr 16 17:00:31 2019
 
 from GWS_query import GWSQuery
 from grainger_query import GraingerQuery
-from queries_WS import grainger_hier_query, grainger_discontinued_query, grainger_ONLY_discontinueds, gws_hier_query
+from queries_WS import grainger_hier_query, grainger_discontinued_query, grainger_ONLY_discontinueds, ws_hier_query
 import file_data_GWS as fd
 import pandas as pd
 import settings_NUMERIC as settings
@@ -21,7 +21,7 @@ gws = GWSQuery()
 def gws_data(grainger_df):
     gws_sku_list = pd.DataFrame()
     
-    sku_list = grainger_df['Grainger_SKU'].tolist()
+    sku_list = grainger_df['STEP_SKU'].tolist()
     
     if len(sku_list)>4000:
         num_lists = round(len(sku_list)/4000, 0)
@@ -40,13 +40,13 @@ def gws_data(grainger_df):
         for k  in range(0, len(div_lists)):
             print('batch {} of {}'.format(k+1, num_lists))
             gws_skus = ", ".join("'" + str(i) + "'" for i in div_lists[k])
-            temp_df = gws.gws_q(gws_hier_query, 'tprod."gtPartNumber"', gws_skus)
+            temp_df = gws.gws_q(ws_hier_query, 'tprod."gtPartNumber"', gws_skus)
             
             gws_sku_list = pd.concat([gws_sku_list, temp_df], axis=0, sort=False) 
             
     else:
         gws_skus = ", ".join("'" + str(i) + "'" for i in sku_list)
-        gws_sku_list = gws.gws_q(gws_hier_query, 'tprod."gtPartNumber"', gws_skus)
+        gws_sku_list = gws.gws_q(ws_hier_query, 'tprod."gtPartNumber"', gws_skus)
 
     return gws_sku_list
 
@@ -139,7 +139,7 @@ if data_type == 'grainger_query':
 
             if gws_df.empty == False:
                 gws_stat = 'yes'
-                temp_df = temp_df.merge(gws_df, how="left", left_on="Grainger_SKU", right_on='WS_SKU')
+                temp_df = temp_df.merge(gws_df, how="left", left_on="STEP_SKU", right_on='WS_SKU')
 
             grainger_df = pd.concat([grainger_df, temp_df], axis=0)
             print(k)
@@ -162,7 +162,7 @@ elif data_type == 'yellow':
 
             if gws_df.empty == False:
                 gws_stat = 'yes'
-                temp_df = temp_df.merge(gws_df, how="left", left_on="Grainger_SKU", right_on='WS_SKU')
+                temp_df = temp_df.merge(gws_df, how="left", left_on="STEP_SKU", right_on='WS_SKU')
 
             grainger_df = pd.concat([grainger_df, temp_df], axis=0)            
             print(k)
@@ -210,19 +210,19 @@ elif data_type == 'sku':
 
         if gws_df.empty == False:
             gws_stat = 'yes'
-            grainger_df = grainger_df.merge(gws_df, how="left", left_on="Grainger_SKU", right_on='WS_SKU')
+            grainger_df = grainger_df.merge(gws_df, how="left", left_on="STEP_SKU", right_on='WS_SKU')
 
 elif data_type == 'gws_query':
     gws_stat = 'yes'
     
     for k in search_data:
-        temp_df = gws.gws_q(gws_hier_query, 'tprod."categoryId"', k)
+        temp_df = gws.gws_q(ws_hier_query, 'tprod."categoryId"', k)
         
         if temp_df.empty == False:
             grainger_skus_df = grainger_data(temp_df, sku_status)
 
             if grainger_skus_df.empty == False:
-                temp_df = temp_df.merge(grainger_skus_df, how="left", left_on="Grainger_SKU", right_on='WS_SKU')
+                temp_df = temp_df.merge(grainger_skus_df, how="left", left_on="STEP_SKU", right_on='WS_SKU')
 
         grainger_df = pd.concat([grainger_df, temp_df], axis=0)            
         print(k)

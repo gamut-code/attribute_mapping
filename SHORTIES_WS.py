@@ -7,7 +7,7 @@ Created on Thur Aug 20 2020
 
 from GWS_query import GWSQuery
 from grainger_query import GraingerQuery
-from queries_WS import gws_short_query, grainger_short_query, grainger_short_values
+from queries_WS import ws_short_query, grainger_short_query, grainger_short_values
 import pandas as pd
 import file_data_GWS as fd
 import settings_NUMERIC as settings
@@ -112,6 +112,7 @@ data_type = search_type()
 search_level = 'cat.CATEGORY_ID'
 
 gws_df = pd.DataFrame()
+grainger_df = pd.DataFrame()
 
 if data_type == 'node':
     search_level = fd.blue_search_level()
@@ -169,10 +170,40 @@ elif data_type == 'yellow':
 elif data_type == 'sku':
     search_level = 'SKU'
 
-    sku_str = ", ".join("'" + str(i) + "'" for i in search_data)
+    if len(search_data)>4000:
+        num_lists = round(len(search_data)/4000, 0)
+        num_lists = int(num_lists)
 
-    grainger_df = gcom.grainger_q(grainger_short_query, 'item.MATERIAL_NO', sku_str)
-    gws_df = gws_data(grainger_df)
+        if num_lists == 1:
+            num_lists = 2
+
+        print('running GWS SKUs in {} batches'.format(num_lists))
+
+        size = round(len(search_data)/num_lists, 0)
+        size = int(size)
+
+        div_lists = [search_data[i * size:(i + 1) * size] for i in range((len(search_data) + size - 1) // size)]
+
+        for k  in range(0, len(div_lists)):
+            print('batch {} of {}'.format(k+1, num_lists))
+            sku_str = ", ".join("'" + str(i) + "'" for i in div_lists[k])
+
+            temp_df = gcom.grainger_q(grainger_short_query, 'item.MATERIAL_NO', sku_str)
+
+            if temp_df.empty == False:                
+                grainger_df = pd.concat([grainger_df, temp_df], axis=0, sort=False)
+            else:
+                print('Empty dataframe')
+
+    else:
+        sku_str = ", ".join("'" + str(i) + "'" for i in search_data)
+
+        grainger_df = gcom.grainger_q(grainger_short_query, 'item.MATERIAL_NO', sku_str)
+
+    if grainger_df.empty == False:
+        gws_df = gws_data(grainger_df)
+    else:
+        print('Empty dataframe')
     
     fd.shorties_data_out(settings.directory_name, grainger_df, gws_df, search_level)
     
@@ -199,4 +230,5 @@ elif data_type == 'value':
             print('All SKUs are R4, R9, or discontinued')            
 
         print(k)
-        print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
+        
+print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))

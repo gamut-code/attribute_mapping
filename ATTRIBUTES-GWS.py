@@ -9,7 +9,7 @@ import numpy as np
 import re
 from grainger_query import GraingerQuery
 from GWS_query import GWSQuery
-from queries_WS import grainger_attr_query, grainger_value_query, gws_attr_values
+from queries_WS import grainger_attr_query, grainger_value_query, ws_attr_values
 import file_data_GWS as fd
 import settings_NUMERIC as settings
 import time
@@ -149,7 +149,7 @@ if data_type == 'sku':
         sku_str = ", ".join("'" + str(i) + "'" for i in search_data)
 
 #        df = gcom.grainger_q(grainger_attr_query, 'item.MATERIAL_NO', sku_str)
-        df = gws.gws_q(gws_attr_values, 'tprod."gtPartNumber"', sku_str)
+        df = gws.gws_q(ws_attr_values, 'tprod."gtPartNumber"', sku_str)
  
         if df.empty == False:
             search_level = 'SKU'
@@ -173,10 +173,10 @@ elif data_type == 'name':
                 k = "'" + str(k) + "'"
 
         elif val_type == 'approx':
-            k = "'%" + str(k) + "%'"
+            k = "'%%" + str(k) + "%%'"
 
 #        df = gcom.grainger_q(grainger_value_query, 'attr.DESCRIPTOR_NAME', k)
-        df = gws_gws_q(gws_attr_values, 'tax_att.name', k)
+        df = gws_gws_q(ws_attr_values, 'tax_att.name', k)
 
         if df.empty == False:
             fd.data_out(settings.directory_name, df, 'ATTRIBUTE Name', search_level)
@@ -197,10 +197,10 @@ elif data_type == 'value':
                 k = "'" + str(k) + "'"
 
         elif val_type == 'approx':
-            k = "'%" + str(k) + "%'"
+            k = "'%%" + str(k) + "%%'"
 
 #        df = gcom.grainger_q(grainger_value_query, 'item_attr.ITEM_DESC_VALUE', k)
-        df = gws.gws_q(gws_attr_values, 'tprodvalue."valueNormalized"', k)
+        df = gws.gws_q(ws_attr_values, 'tprodvalue."valueNormalized"', k)
 
         if df.empty == False:
             fd.data_out(settings.directory_name, df, 'ATTRIBUTE Value', search_level)
@@ -234,10 +234,10 @@ elif data_type == 'uom_val':
                 k = "'" + str(k) + "'"
 
         elif val_type == 'approx':
-            k = "'%" + str(k) + "%'"
+            k = "'%%" + str(k) + "%%'"
 
 #        df = gcom.grainger_q(grainger_value_query, 'item_attr.ITEM_DESC_VALUE', k)
-        df = gws.gws_q(gws_attr_values, 'tprodvalue."unitNormalized"', k)
+        df = gws.gws_q(ws_attr_values, 'tprodvalue."unitNormalized"', k)
 
         if df.empty == False:
             fd.data_out(settings.directory_name, df, 'UOM Value', search_level)

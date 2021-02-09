@@ -6,11 +6,13 @@ Created on Tue Nov 10 20:34:02 2020
 """
 
 import pandas as pd
+import numpy as np
 import WS_query_code as q
 from grainger_query import GraingerQuery
 import file_data_GWS as fd
 import settings_NUMERIC as settings
 import time
+
 
 pd.options.mode.chained_assignment = None
 
@@ -185,7 +187,7 @@ def get_supplier_fill_rate(df):
     return fill_rate_sup
 
 
-def data_out(df, atts_df):
+def data_out(df, atts_df, batch=''):
     # output for sku-based pivot table
     sku_data = df[['Supplier_Parent_Group', 'Supplier_ID', 'Supplier_Name', 'Segment_ID', 'Segment_Name', \
                  'Family_ID', 'Family_Name', 'Category_ID', 'Category_Name', 'Grainger_SKU', 'PM_Code', \
@@ -199,7 +201,8 @@ def data_out(df, atts_df):
     fill = fill.drop_duplicates(subset=['Category_ID', 'Attr_ID'])
     fill = fill.sort_values(by=['Segment_Name', 'Family_Name', 'Category_Name', 'Endeca_Ranking'])
         
-    outfile = 'C:/Users/xcxg109/NonDriveFiles/SUPPLIER_REPORT.xlsx'  
+    outfile = 'C:/Users/xcxg109/NonDriveFiles/SUPPLIER_REPORT_'+str(batch)+'_.xlsx'
+
     writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
     workbook  = writer.book
 
@@ -255,7 +258,7 @@ suppliers = parent_df['Supplier_ID'].unique().tolist()
 loop_count = 1
 
 delim = '|'    
-sales_df = pd.read_csv('C:/Users/xcxg109/NonDriveFiles/code/COGS_by_SKU.txt', delimiter=delim, error_bad_lines=False)
+sales_df = pd.read_csv('C:/Users/xcxg109/NonDriveFiles/reference/COGS_by_SKU.txt', delimiter=delim, error_bad_lines=False)
 sales_df = sales_df.rename(columns={'COGS':'2019_COGS'})
 
 for sup in suppliers:
@@ -316,7 +319,32 @@ for sup in suppliers:
     loop_count += 1
         
 grainger_df = grainger_df.merge(sales_df, how= "inner", on=['Grainger_SKU'])
-data_out(grainger_df, grainger_atts)
+
+if len(grainger_df) > 300000:
+    count = 1
+
+    # split into multiple dfs of 40K rows, creating at least 2
+    num_lists = round(len(grainger_df)/300000, 0)
+    num_lists = int(num_lists)
+
+    if num_lists == 1:
+        num_lists = 2
+    
+    print('creating {} output files'.format(num_lists))
+
+    # np.array_split creates [num_lists] number of chunks, each referred to as an object in a loop
+    split_df = np.array_split(grainger_df, num_lists)
+
+    for object in split_df:
+        print('iteration {} of {}'.format(count, num_lists))
+        
+        data_out(object, grainger_atts, count)
+
+        count += 1
+    
+# if original df < 30K rows, process the entire thing at once
+else:
+    data_out(grainger_df, grainger_atts)
 
 print("--- total time: {} minutes ---".format(round((time.time() - init_time)/60, 2)))
 

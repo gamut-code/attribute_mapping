@@ -10,9 +10,28 @@ import re
 import time
 import math
 import file_data_GWS as fd
-import WS_query_code as q
+import settings_NUMERIC as settings
+#import WS_query_code as q
 
 pd.options.mode.chained_assignment = None
+
+def get_att_values():
+    """ read in externally generated file of all attribute values at the L1 level. file format exported from
+    teradata SQL assistant as tab delimited text """
+   
+    filename = settings.choose_file()
+
+    delim = '|'
+    
+    """ ignore errors on import lines (message will print when loading) """
+    df = pd.read_csv(filename, delimiter=delim, error_bad_lines=False)
+    
+    df['Count'] = 1
+        
+#    df.to_csv('C:/Users/xcxg109/NonDriveFiles/allCats.csv')
+    
+    return df
+
 
 def gws_values(df):
     df['WS_Value'] = ''
@@ -457,7 +476,6 @@ def data_out(final_df, node, node_name, batch=''):
     layout = workbook.add_format()
     layout.set_text_wrap('text_wrap')
     layout.set_align('left')
-
     col_widths = fd.get_col_widths(final_no_dupes)
     col_widths = col_widths[1:]
     
@@ -496,12 +514,12 @@ temp_df_2 = pd.DataFrame()
 
 # read in grainger data
 print('Choose Grainger L1 file')
-allCATS_df = q.get_att_values()
+allCATS_df = get_att_values()
 
 # read in and clean WS data
 print('\nChoose WS file')
-#WS_allCATS_df = q.get_att_values()
-WS_allCATS_df = pd.read_csv('C:/Users/xcxg109/NonDriveFiles/reference/WS PAINT.csv')
+WS_allCATS_df = get_att_values()
+#WS_allCATS_df = pd.read_csv('C:/Users/xcxg109/NonDriveFiles/reference/WS PAINT.csv')
 
 WS_allCATS_df['STEP_Attr_ID'] = WS_allCATS_df['STEP_Attr_ID'].str.replace('_ATTR', '')
 WS_allCATS_df['STEP_Attr_ID'] = WS_allCATS_df['STEP_Attr_ID'].str.replace('_GATTR', '')

@@ -330,7 +330,6 @@ def get_att_values():
     delim = '|'
     
     """ ignore errors on import lines (message will print when loading) """
-    df = pd.read_csv(filename, delimiter=delim, error_bad_lines=False)
     
     df['Count'] = 1
         

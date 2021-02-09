@@ -6,7 +6,7 @@ Created on Fri Jul 12 12:56:37 2019
 """
 
 
-gws_basic_query="""
+ws_basic_query="""
     SELECT
           tprod."gtPartNumber" as "WS_SKU"
         , tprod."gtPartNumber" as "Grainger_SKU"
@@ -17,7 +17,7 @@ gws_basic_query="""
     WHERE {} IN ({})
 """
 
-gws_attr_query="""
+ws_attr_query="""
         WITH RECURSIVE tax AS (
                 SELECT  id,
             name,
@@ -57,7 +57,7 @@ gws_attr_query="""
     WHERE {} IN ({})
         """
 
-gws_attr_values="""
+ws_attr_values="""
         WITH RECURSIVE tax AS (
                 SELECT  id,
             name,
@@ -76,7 +76,6 @@ gws_attr_values="""
                 FROM    taxonomy_category as category
                 INNER JOIN tax ON category."parentId" = tax.id
                 WHERE   category.deleted = false
-
             )
 
     SELECT
@@ -127,7 +126,7 @@ gws_attr_values="""
         """
 
 #get basic SKU list and hierarchy data from Grainger teradata material universe
-gws_hier_query="""
+ws_hier_query="""
             WITH RECURSIVE tax AS (
                 SELECT  id,
                         name,
@@ -150,25 +149,26 @@ gws_hier_query="""
             )
 
             SELECT
-                array_to_string(tax.ancestor_names || tax.name,' > ') as "GWS_PIM_Path"
-                , tax.ancestors[1] as "GWS_Category_ID"
-                , tax.ancestor_names[1] as "GWS_Category_Name"
-                , tprod."categoryId" AS "GWS_Node_ID"
-                , tax.name as "GWS_Node_Name"
+                array_to_string(tax.ancestor_names || tax.name,' > ') as "PIM_Path"
+                , tax.ancestors[1] as "PIM_Category_ID"
+                , tax.ancestor_names[1] as "PIM_Category_Name"
+                , tprod."categoryId" AS "PIM_Node_ID"
+                , tax.name as "PIM_Node_Name"
                 , tprod."gtPartNumber" as "WS_SKU"
-                , tprod.id as "PIM_ID"
+                , tprod.id as "PIM_SKU_ID"
+                , tprod.status as "PIM_Status"
 
             FROM taxonomy_product tprod
 
             INNER JOIN tax
                 ON tax.id = tprod."categoryId"
-                AND tprod.status = 3
+--                AND tprod.status = 3
         
             WHERE {} IN ({})
             """
 
 #pull short descriptions from the gamut postgres database
-gws_short_query="""
+ws_short_query="""
         WITH RECURSIVE merch AS (
                 SELECT  id,
 			        name,
@@ -213,6 +213,98 @@ gws_short_query="""
                 AND {} IN ({})
             """  
 
+Merch_PIM_hier="""
+        WITH RECURSIVE tax AS (
+                SELECT  id,
+			name,
+                    ARRAY[]::INTEGER[] AS ancestors,
+                    ARRAY[]::character varying[] AS ancestor_names
+                FROM    taxonomy_category as category
+                WHERE   "parentId" IS NULL
+                AND category.deleted = false
+
+                UNION ALL
+
+                SELECT  category.id,
+			category.name,
+                    tax.ancestors || category."parentId",
+                    tax.ancestor_names || parent_category.name
+                FROM    taxonomy_category as category
+                    JOIN tax on category."parentId" = tax.id
+                    JOIN taxonomy_category parent_category on category."parentId" = parent_category.id
+                WHERE   category.deleted = false
+                
+            ),
+
+        merch AS (
+                SELECT  id,
+			name,
+                    ARRAY[]::INTEGER[] AS ancestors,
+                    ARRAY[]::character varying[] AS ancestor_names
+                FROM    merchandising_category as category
+                WHERE   "parentId" IS NULL
+                AND category.deleted = false
+                 and category.visible = true
+
+                UNION ALL
+
+                SELECT  category.id,
+			category.name,
+                    merch.ancestors || category."parentId",
+                    merch.ancestor_names || parent_category.name
+                FROM    merchandising_category as category
+                    JOIN merch on category."parentId" = merch.id
+                    JOIN merchandising_category parent_category on category."parentId" = parent_category.id
+                WHERE   category.deleted = false
+			and category.visible = true		
+            )
+          
+        SELECT
+            tprod.id as "PIM_SKU_ID"
+            , tprod."gtPartNumber" as "WS_SKU"
+            , array_to_string(tax.ancestor_names || tax.name,' > ') as "PIM_Path"  
+            , tax.ancestors[1] as "PIM_Category_ID"
+            , tax.ancestor_names[1] as "PIM_Category_Name"
+            , tprod."categoryId" as "PIM_Node_ID"
+            , tax.name as "PIM_Node_Name"
+            , array_to_string(merch.ancestor_names || merch.name,' > ') as "MERCH_Path"
+            , mprod."merchandisingCategoryId" AS "MERCH_Node_ID"
+            , mcat.name AS "MERCH_Node_Name"
+            , mcoll.name as "MERCH_Product Group"
+
+        FROM taxonomy_product tprod
+
+        INNER JOIN tax
+            ON tax.id = tprod."categoryId"
+            -- AND (10006 = ANY(tax.ancestors)) --OR 8215 = ANY(tax.ancestors) OR 7739 = ANY(tax.ancestors))  -- *** ADD TOP LEVEL NODES HERE ***
+	
+        LEFT JOIN  merchandising_product mprod
+            ON tprod.id = mprod."taxonomyProductId"
+            AND mprod.deleted = 'f'
+
+        lEFT JOIN merch
+            ON merch.id = mprod."merchandisingCategoryId"
+            --AND (8575 = ANY(merch.ancestors)) --OR 8215 = ANY(merch.ancestors) OR 7739 = ANY(merch.ancestors))  -- *** ADD TOP LEVEL NODES HERE ***
+
+        LEFT JOIN merchandising_category mcat
+            ON mcat.id = mprod."merchandisingCategoryId"
+
+        LEFT JOIN merchandising_collection_product mcollprod
+            ON mcollprod."merchandisingProductId" = mprod.id
+
+        LEFT JOIN merchandising_collection mcoll
+            ON mcoll.id = mcollprod."collectionId"
+
+        WHERE tprod.deleted = 'f'
+            -- AND tprod."gtPartNumber" IN ('
+            -- AND mprod."merchandisingCategoryId" IN (
+            -- AND tax.id IN (
+
+        ORDER BY
+            mprod."merchandisingCategoryId"
+            , mcoll.name
+"""  
+  
             
 #get basic SKU list and hierarchy data from Grainger teradata material universe
 grainger_basic_query="""
@@ -225,7 +317,8 @@ grainger_basic_query="""
             , cat.CATEGORY_NAME AS Category_Name
             , item.PM_CODE
             , item.SALES_STATUS
-
+            , item.RELATIONSHIP_MANAGER_CODE
+            
             FROM PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
             
             RIGHT JOIN PRD_DWH_VIEW_LMT.ITEM_V AS item
@@ -596,19 +689,20 @@ grainger_short_values="""
 
 #variation of the basic query designed to include discontinued items
 grainger_discontinued_query="""
-            SELECT item.MATERIAL_NO AS Grainger_SKU
-            , cat.SEGMENT_ID AS Segment_ID
-            , cat.SEGMENT_NAME AS Segment_Name
-            , cat.FAMILY_ID AS Family_ID
-            , cat.FAMILY_NAME AS Family_Name
-            , cat.CATEGORY_ID AS Category_ID
-            , cat.CATEGORY_NAME AS Category_Name
+            SELECT item.MATERIAL_NO AS STEP_SKU
+            , cat.SEGMENT_ID AS STEP_Segment_ID
+            , cat.SEGMENT_NAME AS STEP_Segment_Name
+            , cat.FAMILY_ID AS STEP_Family_ID
+            , cat.FAMILY_NAME AS STEP_Family_Name
+            , cat.CATEGORY_ID AS STEP_Category_ID
+            , cat.CATEGORY_NAME AS STEP_Category_Name
+            , supplier.SUPPLIER_NO AS Supplier_ID
+            , supplier.SUPPLIER_NAME AS Supplier
             , item.PM_CODE
-            , item.SALES_STATUS
+            , item.SALES_STATUS AS STEP_SALES_STATUS
             , item.RELATIONSHIP_MANAGER_CODE
-            , item.SUPPLIER_NO
-            , yellow.PROD_CLASS_ID AS Gcom_Yellow
-            , flat.Web_Parent_Name AS Gcom_Web_Parent
+            , yellow.PROD_CLASS_ID AS STEP_Yellow
+            , flat.Web_Parent_Name AS STEP_Web_Parent
 
             FROM PRD_DWH_VIEW_LMT.ITEM_V AS item
 
@@ -621,6 +715,12 @@ grainger_discontinued_query="""
 
             FULL OUTER JOIN PRD_DWH_VIEW_LMT.Yellow_Heir_Flattend_view AS flat
                 ON yellow.PROD_CLASS_ID = flat.Heir_End_Class_Code
+ 
+            INNER JOIN PRD_DWH_VIEW_LMT.material_v AS prod
+                on prod.MATERIAL = item.MATERIAL_NO
+
+            INNER JOIN PRD_DWH_VIEW_MTRL.supplier_v AS supplier
+                ON prod.vendor = supplier.SUPPLIER_NO
 
             WHERE {} IN ({})
             """

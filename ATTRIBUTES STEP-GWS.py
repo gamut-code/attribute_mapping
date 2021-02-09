@@ -9,7 +9,7 @@ import numpy as np
 import re
 from grainger_query import GraingerQuery
 from GWS_query import GWSQuery
-from queries_WS import grainger_attr_query, grainger_value_query, gws_attr_values
+from queries_WS import grainger_attr_query, grainger_value_query, ws_attr_values
 import file_data_GWS as fd
 import settings_NUMERIC as settings
 import time

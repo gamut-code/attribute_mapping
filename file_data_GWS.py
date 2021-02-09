@@ -495,10 +495,12 @@ def shorties_data_out(directory_name, grainger_df, gws_df, search_level):
     
 def hier_data_out(directory_name, df, quer, stat, search_level):
 
-    columnTitles = ['Grainger_SKU', 'WS_SKU', 'PIM_ID', 'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', \
-                    'Category_ID', 'Category_Name', 'Gcom_Yellow', 'Gcom_Web_Parent', 'GWS_PIM_Path', \
-                    'GWS_Category_ID', 'GWS_Category_Name', 'GWS_Node_ID', 'GWS_Node_Name', 'PM_CODE', \
-                    'SALES_STATUS', 'RELATIONSHIP_MANAGER_CODE']    
+    columnTitles = ['STEP_SKU', 'WS_SKU', 'PIM_SKU_ID', 'STEP_Segment_ID', 'STEP_Segment_Name', \
+                    'STEP_Family_ID', 'STEP_Family_Name', 'STEP_Category_ID', 'STEP_Category_Name', \
+                    'STEP_Yellow', 'STEP_Web_Parent', 'PIM_Path', 'PIM_Category_ID', 'PIM_Category_Name', \
+                    'PIM_Node_ID', 'PIM_Node_Name', 'PM_CODE', 'STEP_SALES_STATUS', \
+                    'PIM_Status', 'RELATIONSHIP_MANAGER_CODE']    
+        
     df = df.reindex(columns=columnTitles)
 
     outfile = outfile_name(directory_name, quer, df, search_level, stat)

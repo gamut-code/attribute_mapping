@@ -10,7 +10,6 @@ meet the conditions for review found in the process_vals module.
 
 import pandas as pd
 import numpy as np
-import WS_query_code as q
 from GWS_query import GWSQuery
 from grainger_query import GraingerQuery
 import file_data_GWS as fd

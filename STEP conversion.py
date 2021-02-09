@@ -66,10 +66,10 @@ def process_vals(info_df, process_df, updatedVal_col):
     return process_df
 
 
-def data_out(final_df):
+def data_out(final_df, node_name, batch=''):
     final_df = final_df.sort_values(['<ID>'], ascending=[True])
     
-    outfile = 'C:/Users/xcxg109/NonDriveFiles/STEP-upload.xlsx'  
+    outfile = 'C:/Users/xcxg109/NonDriveFiles/'+str(node_name)+'_'+str(batch)+'_STEP-upload.xlsx'  
     writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
     workbook  = writer.book
 
@@ -96,6 +96,9 @@ df = get_att_values()
 print('working...')
 start_time = time.time()
 
+node_name = df['Segment_Name'].unique()
+node_name = node_name[0]
+
 temp_df = pd.DataFrame()
 
 # filter where column names and values can vary
@@ -105,10 +108,13 @@ if not update_col:
 if not update_col:
     update_col = [col for col in df.columns if 'Use Update' in col]
 
-updatedVal_col = [col for col in df.columns if 'Udpated Value' in col]
+updatedVal_col = [col for col in df.columns if 'Updated Value' in col]
 if not updatedVal_col: 
     updatedVal_col = [col for col in df.columns if 'Updated_Value' in col]
-    
+
+if not updatedVal_col: 
+    print('updated value column EMPTY!')
+else:   
     print('updated value column = ', updatedVal_col[0])
 
 
@@ -156,5 +162,30 @@ if len(df) > 3000:
 else:
     step_df = process_vals(df, step_df, updatedVal_col)
 
-data_out(step_df)
+if len(step_df) > 50000:
+    count = 1
+
+    # split into multiple dfs of 40K rows, creating at least 2
+    num_lists = round(len(step_df)/45000, 0)
+    num_lists = int(num_lists)
+
+    if num_lists == 1:
+        num_lists = 2
+    
+    print('creating {} output files'.format(num_lists))
+
+    # np.array_split creates [num_lists] number of chunks, each referred to as an object in a loop
+    split_df = np.array_split(step_df, num_lists)
+
+    for object in split_df:
+        print('iteration {} of {}'.format(count, num_lists))
+        
+        data_out(object, node_name, count)
+
+        count += 1
+    
+# if original df < 30K rows, process the entire thing at once
+else:
+    data_out(step_df, node_name)
+
 print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))
