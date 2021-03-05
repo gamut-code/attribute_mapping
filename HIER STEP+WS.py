@@ -1,4 +1,4 @@
-1# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Created on Tue Apr 16 17:00:31 2019
 
@@ -7,7 +7,7 @@ Created on Tue Apr 16 17:00:31 2019
 
 from GWS_query import GWSQuery
 from grainger_query import GraingerQuery
-from queries_WS import grainger_hier_query, grainger_discontinued_query, grainger_ONLY_discontinueds, ws_hier_query
+from queries_WS import grainger_hier_query, grainger_discontinued_query, ws_hier_query
 import file_data_GWS as fd
 import pandas as pd
 import settings_NUMERIC as settings
@@ -105,7 +105,6 @@ def skus_to_pull():
 
 print('working....')
 quer='HIER'
-gws_stat = 'no'
 grainger_df = pd.DataFrame()
 
 #request the type of data to pull: blue or yellow, SKUs or node, single entry or read from file

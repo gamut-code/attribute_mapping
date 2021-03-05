@@ -9,7 +9,6 @@ Created on Fri Jul 12 12:56:37 2019
 ws_basic_query="""
     SELECT
           tprod."gtPartNumber" as "WS_SKU"
-        , tprod."gtPartNumber" as "Grainger_SKU"
         , tprod."categoryId" AS "GWS_Node_ID"
         
     FROM taxonomy_product tprod
@@ -85,6 +84,8 @@ ws_attr_values="""
         , tprod."categoryId" AS "WS_Node_ID"
         , tax.name as "WS_Node_Name"
         , tprod."gtPartNumber" as "WS_SKU"
+        , supplier."supplierNo" as "Supplier_ID"
+        , tprod.supplier as "Supplier_Name"
         , pi_mappings.step_category_ids[1] AS "STEP_Category_ID"
         , pi_mappings.step_attribute_ids[1] as "STEP_Attr_ID"
         , tax_att.id as "WS_Attr_ID"
@@ -101,6 +102,8 @@ ws_attr_values="""
 	    , tprodvalue."numeratorNormalized" as "Numerator"
 	    , tprodvalue."denominatorNormalized" as "Denominator"
         , tax_att."unitGroupId" as "Unit_Group_ID"
+        , tax_att.rank as "Rank"
+        , tax_att.priority as "Priority"
    
     FROM  taxonomy_product tprod
 
@@ -109,18 +112,21 @@ ws_attr_values="""
         --  AND (4458 = ANY(tax.ancestors)) --OR 8215 = ANY(tax.ancestors) OR 7739 = ANY(tax.ancestors))  -- *** ADD TOP LEVEL NODES HERE ***
         AND tprod.status = 3
         
-    INNER JOIN taxonomy_attribute tax_att
+    FULL OUTER JOIN taxonomy_attribute tax_att
         ON tax_att."categoryId" = tprod."categoryId"
         AND tax_att.deleted = 'false'
 
-    INNER JOIN  taxonomy_product_attribute_value tprodvalue
+    FULL OUTER JOIN  taxonomy_product_attribute_value tprodvalue
         ON tprod.id = tprodvalue."productId"
         AND tax_att.id = tprodvalue."attributeId"
         AND tprodvalue.deleted = 'false'
 
-    INNER JOIN pi_mappings
+    FULL OUTER JOIN pi_mappings
         ON pi_mappings.gws_attribute_ids[1] = tax_att.id
         AND pi_mappings.gws_category_id = tax_att."categoryId"
+        
+    FULL OUTER JOIN supplier_product supplier
+        ON supplier.id = tprod."supplierProductId"
         
     WHERE {} IN ({})
         """
@@ -166,6 +172,56 @@ ws_hier_query="""
         
             WHERE {} IN ({})
             """
+
+ws_attributes_reverse_STEP_lookup="""
+        WITH RECURSIVE tax AS (
+                SELECT  id,
+            name,
+            ARRAY[]::INTEGER[] AS ancestors,
+            ARRAY[]::character varying[] AS ancestor_names
+                FROM    taxonomy_category as category
+                WHERE   "parentId" IS NULL
+                AND category.deleted = false
+
+                UNION ALL
+
+                SELECT  category.id,
+            category.name,
+            tax.ancestors || tax.id,
+            tax.ancestor_names || tax.name
+                FROM    taxonomy_category as category
+                INNER JOIN tax ON category."parentId" = tax.id
+                WHERE   category.deleted = false
+
+            )
+
+    SELECT
+          array_to_string(tax.ancestor_names || tax.name,' > ') as "GWS_PIM_Path"
+        , tax.ancestors[1] as "GWS_Category_ID"
+        , tax.ancestor_names[1] as "GWS_Category_Name"
+        , tax_att."categoryId" AS "GWS_Node_ID"
+        , tax.name as "GWS_Node_Name"
+        , tax_att.id as "GWS_Attr_ID"
+        , tax_att.name as "GWS_Attribute_Name"
+        , pi_mappings.step_category_ids[1] AS "STEP_Category_ID"
+        , pi_mappings.step_attribute_ids[1] as "STEP_Attr_ID"
+   
+    FROM  taxonomy_attribute tax_att
+
+    INNER JOIN tax
+        ON tax.id = tax_att."categoryId"
+        
+    FULL OUTER JOIN pi_mappings
+        ON pi_mappings.gws_attribute_ids[1] = tax_att.id
+        AND pi_mappings.gws_category_id = tax_att."categoryId"
+		
+	WHERE {} = ANY({})
+--	EXAMPLE (categories) WHERE '24461_DIV1' = ANY(pi_mappings.step_category_ids)
+--  EXAMPLE (attributes) WHERE '1234_ATTR' = ANY(pi_mappings.step_attribute_ids)
+--  CALL --      temp_df = gws.gws_q(GWS_cats, k, 'pi_mappings.step_category_ids')
+
+"""
+
 
 #pull short descriptions from the gamut postgres database
 ws_short_query="""

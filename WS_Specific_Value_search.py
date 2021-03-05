@@ -77,7 +77,7 @@ attr_values_1="""
 				AND pi_mappings.gws_category_id = tax_att."categoryId"
 
 		WHERE tax_att."dataType" IN ('text')
-		 AND tprodvalue.value LIKE '%% in%%'
+		 AND tprodvalue.value LIKE '%%in ,%%'
 """
 
 attr_values_2="""
@@ -161,10 +161,11 @@ print('working...')
 ws_df = gws.query(attr_values_1)
 print('WS length = ', len(ws_df))
 
-ws2_df = gws.query(attr_values_2)
-print('WS length = ', len(ws2_df))
+# USE WHEN A SECOND VALUE IS DESIRED
+#ws2_df = gws.query(attr_values_2)
+#print('WS length = ', len(ws2_df))
+#ws_df = pd.concat([ws_df, ws2_df], axis=0, sort=False)
 
-ws_df = pd.concat([ws_df, ws2_df], axis=0, sort=False)
 ws_df.drop_duplicates()
 
 if len(ws_df) > 900000:

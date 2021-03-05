@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 """
 Created on Tue Jan  5 15:56:20 2021
 
@@ -55,13 +55,20 @@ def create_buildsheet(metadata, att_data, high_touch, category_ID, category_name
     tax_col = [col for col in high_touch.columns if 'Taxonomy' in col]
     if not tax_col:
         tax_col = [col for col in high_touch.columns if 'Node Name' in col]
+    
+    if len(high_touch[tax_col]) == 0:
+        tax_col = [col for col in high_touch.columns if 'Current Node' in col]
+    
+    att_col = [col for col in high_touch.columns if 'Attribute Name' in col]
+    if not att_col:
+        att_col = [col for col in high_touch.columns if 'Attribute' in col]
 
     att_ID = att_data['Attribute_ID'].unique().tolist()
     att_ID = str(att_ID[0]).strip()
 
     att_name = att_data['Attribute_Name'].unique().tolist()
     att_name = str(att_name[0]).strip()
-
+    
     data_type = att_data['Data Type'].unique().tolist()
     data_type = str(data_type[0]).strip()
 
@@ -103,12 +110,12 @@ def create_buildsheet(metadata, att_data, high_touch, category_ID, category_name
                     hightouch_node = str(hightouch_node)
                     hightouch_node = hightouch_node.strip()
                     
-                    if hightouch_node in category_name:                    
-                        hightouch_att = high_touch.at[row.Index, 'Attribute Name']
+                    if hightouch_node in category_name:
+                        hightouch_att = high_touch.at[row.Index, att_col[0]]
                         hightouch_att = str(hightouch_att)
                         hightouch_att = hightouch_att.strip()
                 
-                        if hightouch_att == att_name:                        
+                        if hightouch_att == att_name:
                             hightouch_status = high_touch.at[row.Index, hightouch_col[0]]
                             hightouch_status = str(hightouch_status)
                             hightouch_status = hightouch_status.strip()
@@ -145,10 +152,12 @@ def create_buildsheet(metadata, att_data, high_touch, category_ID, category_name
 
 def data_out(final_df, high_touch, batch=''):
     # get rid of all 'nan' values in df / clean up final_df
+    final_df.rename(columns={'RAW': 'Raw Value'})
+
     final_df = final_df.replace(np.nan, '', regex=True)
     final_df = final_df.replace('nan', '')
     final_df['High Touch'] = final_df['High Touch'].str.upper()
-    final_df = final_df.drop_duplicates()
+    final_df = final_df.drop_duplicates() 
     
     if high_touch.empty == False:
         # clean up high_touch df
@@ -159,14 +168,24 @@ def data_out(final_df, high_touch, batch=''):
         hightouch_col = [col for col in high_touch.columns if 'High Touch' in col]
         if not hightouch_col:
             hightouch_col = [col for col in high_touch.columns if 'High-Touch' in col]
-            
+        
+        tax_col = [col for col in high_touch.columns if 'Taxonomy' in col]
+        if not tax_col:
+            tax_col = [col for col in high_touch.columns if 'Node Name' in col]
+        
+        att_col = [col for col in high_touch.columns if 'Attribute Name' in col]
+        if not att_col:
+            att_col = [col for col in high_touch.columns if 'Attribute' in col]
+
+        sample_col = [col for col in high_touch.columns if 'Sample' in col]
+
         if not def_col:
-            high_touch = high_touch[['Taxonomy Node', 'Attribute Name', 'Sample Values', hightouch_col[0]]]    
+            high_touch = high_touch[[tax_col[0], att_col[0], sample_col[0], hightouch_col[0]]]    
         else:
-            high_touch = high_touch[['Taxonomy Node', 'Attribute Name', def_col[0], 'Sample Values', hightouch_col[0]]]    
+            high_touch = high_touch[[tax_col[0], att_col[0], def_col[0], sample_col[0], hightouch_col[0]]]    
 
         high_touch = high_touch.drop_duplicates()
-    
+        
     outfile = 'C:/Users/xcxg109/NonDriveFiles/Audit_Buildsheet_'+str(batch)+'.xlsx'  
     writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
     workbook  = writer.book
@@ -204,7 +223,8 @@ def data_out(final_df, high_touch, batch=''):
 
     writer.save()
 
-        
+
+    
 print('Choose build sheet directory')
 start_time = time.time()
 
@@ -223,7 +243,7 @@ column_names = ['Category ID', 'Category Name', 'Grainger Part Number', 'Status'
                 'Supplier Part Number', 'Manufacturer', 'Series', 'Mfr Part Number', 'Attribute_ID', \
                 'Data Type', 'Multivalued', 'UOM', 'Sample Values', 'Allowed Values', \
                # 'Priority', 'Rank', 
-                'High Touch', 'Attribute Name', 'Value', 'Unit', 'Source', 'Link', \
+                'High Touch', 'Attribute Name', 'Value', 'Unit', 'RAW', 'Source', 'Link', \
                 'Image', 'Decision Log']
 buildsheet_df = pd.DataFrame(columns = column_names)
 
@@ -276,7 +296,15 @@ for file in file_list:
         main_df[9].fillna(method='ffill', inplace=True)
 
         main_df.dropna(how='all', axis=1)
-    
+
+        index = main_df.index
+        noun = main_df[0] == 'Primary Noun'
+        noun_row = index[noun].tolist()
+        noun_row = noun_row[0]
+        
+        main_df = main_df.iloc[:noun_row,:] 
+        extra_data = main_df.iloc[noun_row:,:] 
+        
         # determine number of SKUs = number of times to iterateg
         skus = len(main_df.columns)
         skus = skus - 11     # remove non-SKU columns from count
