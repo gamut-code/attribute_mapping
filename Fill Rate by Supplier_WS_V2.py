@@ -8,7 +8,6 @@ Created on Tue Nov 10 20:34:02 2020
 import pandas as pd
 import numpy as np
 from GWS_query import GWSQuery
-import WS_query_code as q
 import WS_file_data as fd
 import settings_NUMERIC as settings
 import time
@@ -363,7 +362,6 @@ if data_type == 'sku':
             for cat in cats:
                 print('cat - ', cat)
 
-                # temp_df is the ENTIRE category, supplier_df is filtered by supplier ID        
                 total_cat_df = gws.gws_q(ws_attr_values, 'tprod."categoryId"', cat)
 
                 # get category fill rates first because supplier may not have all active attributes in a category

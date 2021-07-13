@@ -83,7 +83,7 @@ AND tax_att.id = tprodvalue."attributeId"
 AND tprodvalue.deleted = 'false'
 AND tax_att."multiValue" = 'true'
         
-INNER JOIN pi_mappings
+LEFT OUTER JOIN pi_mappings
 ON pi_mappings.gws_attribute_ids[1] = tax_att.id
 AND pi_mappings.gws_category_id = tax_att."categoryId"
 """

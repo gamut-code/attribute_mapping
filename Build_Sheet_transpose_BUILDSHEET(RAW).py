@@ -156,6 +156,8 @@ def data_out(final_df, high_touch, batch=''):
 
     final_df = final_df.replace(np.nan, '', regex=True)
     final_df = final_df.replace('nan', '')
+    
+    final_df['High Touch'] = final_df['High Touch'].replace('', 'N')
     final_df['High Touch'] = final_df['High Touch'].str.upper()
     final_df = final_df.drop_duplicates() 
     
@@ -181,13 +183,15 @@ def data_out(final_df, high_touch, batch=''):
 
         if not def_col:
             high_touch = high_touch[[tax_col[0], att_col[0], sample_col[0], hightouch_col[0]]]    
-        else:
+        elif not sample_col:
+            high_touch = high_touch[[tax_col[0], att_col[0], def_col[0], hightouch_col[0]]]    
+        else:    
             high_touch = high_touch[[tax_col[0], att_col[0], def_col[0], sample_col[0], hightouch_col[0]]]    
 
         high_touch = high_touch.drop_duplicates()
         
     outfile = 'C:/Users/xcxg109/NonDriveFiles/Audit_Buildsheet_'+str(batch)+'.xlsx'  
-    writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
+    writer = pd.ExcelWriter(outfile, engine='xlsxwriter', options={'strings_to_urls': False})
     workbook  = writer.book
 
     final_df.to_excel (writer, sheet_name="Build Sheet", startrow=0, startcol=0, index=False)
@@ -255,6 +259,8 @@ for file in file_list:
     if 'high touch' in filename or 'high_touch' in filename:
         xls = pd.ExcelFile(file)
         hightouch_df = pd.read_excel(xls, 'Schema')
+        
+        print('FOUND: High Touch file')
 
 if hightouch_df.empty == True:
     print('CANNOT FIND HIGH TOUCH FILE')

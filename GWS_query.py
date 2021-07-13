@@ -14,7 +14,7 @@ class GWSQuery:
     def gws_q(self, query, attribute, data):
         """Query Postgres database using new GWS login"""
         
-        gws_q = query.format(attribute, data)  #aattribute = SQL table
+        gws_q = query.format(attribute, data)  #attribute = SQL table
   
         query_df = db.query(gws_q)       
         return query_df

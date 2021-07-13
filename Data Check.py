@@ -53,7 +53,7 @@ STEP_ETL_query="""
 
             WHERE item.SALES_STATUS NOT IN ('DG', 'DV', 'CS')
                 AND item.RELATIONSHIP_MANAGER_CODE NOT IN ('L15', '')
-                AND item.SUPPLIER_NO NOT IN (20009997, 20201557, 20201186)
+--                AND item.SUPPLIER_NO NOT IN (20009997, 20201557, 20201186)
                 AND {} IN ({})
             """
 
@@ -78,7 +78,7 @@ def gws_data(df):
 def grainger_data(gws_df):
     sku_list = gws_df['Grainger_SKU'].tolist()
     skus = ", ".join("'" + str(i) + "'" for i in sku_list)
-    grainger_df = gcom.grainger_q(grainger_basic_query, 'item.MATERIAL_NO', skus)
+    grainger_df = gcom.grainger_q(STEP_ETL_query, 'item.MATERIAL_NO', skus)
 
     return grainger_df
 
@@ -126,33 +126,41 @@ def stats(grainger_df):
             grainger_attributes = [ x for x in grainger_attributes if 'Green Environmental' not in x ]
             
             revised_num = int(att_num - len(grainger_attributes))
-                        
-                        
+
+            temp_grainger_atts.to_csv('C:/Users/xcxg109/NonDriveFiles/temp.csv')
+
             if gws_nodes.any():
-                gws_atts = gws.gws_q(gws_attr_query, 'tax_att."categoryId"', gws_nodes[0])
+                
+                for n in gws_nodes:
+                    print ('gws = ', n)
+                    temp_gws_atts = gws.gws_q(gws_attr_query, 'tax_att."categoryId"', n)
+#                    gws_atts.to_csv('C:/Users/xcxg109/NonDriveFiles/moist.csv')
 
+                    if temp_gws_atts.empty==False:
+                        temp_gws_atts['#_GWS_Products'] = gws_skus[0]
+
+                        gws_node_name = temp_gws_atts['GWS_Node_Name'].unique()
+                        gws_node_id = temp_gws_atts['GWS_Node_ID'].unique()
+
+                        gws_attributes = temp_gws_atts['GWS_Attribute_Name'].to_list()
+
+                        set_difference = set(grainger_attributes) - set(gws_attributes)
+                        diff = list(set_difference)
+                        diff = '; '.join(diff)
+
+                        temp_gws_atts['count'] = 1 
+                        gws_att_count = temp_gws_atts.drop_duplicates(subset=['GWS_Attr_ID'])        
+                        gws_att_count = gws_att_count.groupby(['GWS_Node_Name', 'GWS_Node_ID', '#_GWS_Products'])['count'].sum().reset_index()
+
+                        gws_atts = pd.concat([gws_atts, temp_gws_atts], axis=0)
+                        
                 if gws_atts.empty==False:
-                    gws_atts['#_GWS_Products'] = gws_skus[0]
-
-                    gws_node_name = gws_atts['GWS_Node_Name'].unique()
-                    gws_node_id = gws_atts['GWS_Node_ID'].unique()
-
-                    gws_attributes = gws_atts['GWS_Attribute_Name'].to_list()
-
-                    set_difference = set(grainger_attributes) - set(gws_attributes)
-                    diff = list(set_difference)
-                    diff = '; '.join(diff)
-
-                    gws_atts['count'] = 1 
-                    gws_att_count = gws_atts.drop_duplicates(subset=['GWS_Attr_ID'])        
-                    gws_att_count = gws_att_count.groupby(['GWS_Node_Name', 'GWS_Node_ID', '#_GWS_Products'])['count'].sum().reset_index()
-
                     grainger_att_count = temp_grainger_atts.drop_duplicates(subset=['Grainger_Attr_ID'])
                     grainger_att_count = grainger_att_count.groupby(['Category_ID'])['count'].sum().reset_index()
                     grainger_att_count = grainger_att_count - revised_num  # take into account if item or series were removed
 
                     temp_grainger_atts = temp_grainger_atts.merge(gws_att_count, how="left", left_on=["Category_Name"], \
-                                                                                  right_on=['GWS_Node_Name'])
+                                                                                             right_on=['GWS_Node_Name'])
                     temp_grainger_atts['#_GWS_Attributes'] = gws_att_count['count']
                     temp_grainger_atts['#_GWS_Products'] = gws_skus[0]
                     temp_grainger_atts['GWS_Node_Name'] = gws_node_name[0]

@@ -59,18 +59,18 @@ def gws_skus(grainger_skus):
         for k  in range(0, len(div_lists)):
             print('batch {} of {}'.format(k+1, num_lists))
             gws_skus = ", ".join("'" + str(i) + "'" for i in div_lists[k])
-#            temp_df = gws.gws_q(gws_basic_query, 'tprod."gtPartNumber"', gws_skus)
-            temp_gamut_df = gamut.gamut_q(gamut_basic_query, 'tprod."supplierSku"', gws_skus)
+            temp_df = gws.gws_q(gws_basic_query, 'tprod."gtPartNumber"', gws_skus)
+ #           temp_gamut_df = gamut.gamut_q(gamut_basic_query, 'tprod."supplierSku"', gws_skus)
             
- #           gws_sku_list = pd.concat([gws_sku_list, temp_df], axis=0, sort=False) 
-            gamut_sku_list = pd.concat([gamut_sku_list, temp_gamut_df], axis=0, sort=False) 
+            gws_sku_list = pd.concat([gws_sku_list, temp_df], axis=0, sort=False) 
+ #           gamut_sku_list = pd.concat([gamut_sku_list, temp_gamut_df], axis=0, sort=False) 
             
     else:
         gws_skus = ", ".join("'" + str(i) + "'" for i in sku_list)
-  #      gws_sku_list = gws.gws_q(gws_basic_query, 'tprod."gtPartNumber"', gws_skus)
-        gamut_sku_list = gamut.gamut_q(gamut_basic_query, 'tprod."supplierSku"', gws_skus)
+        gws_sku_list = gws.gws_q(gws_basic_query, 'tprod."gtPartNumber"', gws_skus)
+  #      gamut_sku_list = gamut.gamut_q(gamut_basic_query, 'tprod."supplierSku"', gws_skus)
 
-    return gamut_sku_list
+    return gws_sku_list
 
 
 def gws_atts(query, gws_node, query_type):
@@ -90,7 +90,8 @@ def gamut_definition(gamut_node, query_type):
     df = pd.DataFrame()
     #pull attributes for the next pim node in the gamut list
     print('gamut node = ', gamut_node)
-    df = gamut.gamut_q(gamut_attr_query, query_type, gamut_node)
+#    df = gamut.gamut_q(gamut_attr_query, query_type, gamut_node)
+    df = gws.gws_q(gws_attr_query, query_type, gamut_node)
     
     print('Gamut ', gamut_node)
 
@@ -116,7 +117,7 @@ def grainger_values(df):
     func_df = df.copy()
     func_df['Count'] =1
     func_df['Comma Separated Values'] = ''
-    print('func_df = ', func_df.columns)
+
     atts = func_df['Grainger_Attribute_Name'].unique().tolist()
     
     # remove Item and Series from attribute counts (** specific terms)

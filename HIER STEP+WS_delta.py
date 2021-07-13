@@ -7,16 +7,39 @@ Created on Tue Apr 16 17:00:31 2019
 
 from GWS_query import GWSQuery
 from grainger_query import GraingerQuery
-from queries_WS import grainger_hier_query, grainger_discontinued_query
+#from queries_WS import grainger_hier_query, grainger_discontinued_query, ws_hier_query
 import file_data_GWS as fd
 import pandas as pd
 import settings_NUMERIC as settings
 import time
 
+STEP_query="""
+ SELECT item.MATERIAL_NO AS STEP_SKU
+            , cat.SEGMENT_ID AS Segment_ID
+            , cat.SEGMENT_NAME AS Segment_Name
+            , cat.FAMILY_ID AS Family_ID
+            , cat.FAMILY_NAME AS Family_Name
+            , cat.CATEGORY_ID AS Category_ID
+            , cat.CATEGORY_NAME AS Category_Name
+            , item.SUPPLIER_NO
+            , item.RELATIONSHIP_MANAGER_CODE
+            , item.PM_CODE
+            , item.SALES_STATUS
+            , item.PRICING_FLAG
+            , item.PRICER_FIRST_EFFECTIVE_DATE
+            
+            FROM PRD_DWH_VIEW_LMT.ITEM_V AS item
 
-gcom = GraingerQuery()
-gws = GWSQuery()
-
+            FULL OUTER JOIN PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
+            	ON cat.CATEGORY_ID = item.CATEGORY_ID
+--         		AND item.DELETED_FLAG = 'N'
+--                AND item.PRODUCT_APPROVED_US_FLAG = 'Y'
+--                AND item.PM_CODE NOT IN ('R9')
+        
+            WHERE item.SALES_STATUS NOT IN ('DG', 'DV', 'CS')
+                AND item.RELATIONSHIP_MANAGER_CODE NOT IN ('L15', '') -- NOTE: blank RMC = MX only
+                AND {} IN ({})
+"""
 
 ws_hier_query="""
             WITH RECURSIVE tax AS (
@@ -54,16 +77,20 @@ ws_hier_query="""
 
             INNER JOIN tax
                 ON tax.id = tprod."categoryId"
+--                AND tprod.status = 3
         
             WHERE {} IN ({})
             """
             
-            
+gcom = GraingerQuery()
+gws = GWSQuery()
+
+
 def gws_data(grainger_df):
     gws_sku_list = pd.DataFrame()
     
     sku_list = grainger_df['STEP_SKU'].tolist()
-
+    
     if len(sku_list)>4000:
         num_lists = round(len(sku_list)/4000, 0)
         num_lists = int(num_lists)
@@ -89,6 +116,9 @@ def gws_data(grainger_df):
         gws_skus = ", ".join("'" + str(i) + "'" for i in sku_list)
         gws_sku_list = gws.gws_q(ws_hier_query, 'tprod."gtPartNumber"', gws_skus)
 
+    if gws_sku_list.empty == True:
+        print('WS EMPTY DATAFRAME')
+        
     return gws_sku_list
 
 
@@ -98,10 +128,10 @@ def grainger_data(gws_df, sku_status):
     grainger_skus = ", ".join("'" + str(i) + "'" for i in sku_list)
     
     if sku_status == 'filtered':
-        grainger_df = gcom.grainger_q(grainger_hier_query, 'item.MATERIAL_NO', grainger_skus )
+        grainger_df = gcom.grainger_q(STEP_query, 'item.MATERIAL_NO', grainger_skus )
                 
     elif sku_status == 'all':
-        grainger_df = gcom.grainger_q(grainger_discontinued_query, 'item.MATERIAL_NO', grainger_skus )
+        grainger_df = gcom.grainger_q(STEP_query, 'item.MATERIAL_NO', grainger_skus )
 
     return grainger_df
 
@@ -143,7 +173,28 @@ def skus_to_pull():
 
     return sku_status
 
+#general output to xlsx file, used for the basic query
+def data_out(df, quer, batch=''):
 
+    if df.empty == False:
+        outfile = 'C:/Users/xcxg109/NonDriveFiles/SKU_REPORT_'+str(batch)+'.xlsx'  
+
+        writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
+        df.to_excel (writer, sheet_name="DATA", startrow=0, startcol=0, index=False)
+        worksheet = writer.sheets['DATA']
+        col_widths = fd.get_col_widths(df)
+        col_widths = col_widths[1:]
+        
+        for i, width in enumerate(col_widths):
+            if width > 40:
+                width = 40
+            elif width < 10:
+                width = 10
+            worksheet.set_column(i, i, width) 
+        writer.save()
+    else:
+        print('EMPTY DATAFRAME')
+        
 print('working....')
 quer='HIER'
 gws_stat = 'no'
@@ -168,18 +219,12 @@ grainger_df = pd.DataFrame()
 print('working....')
 
 if data_type == 'grainger_query':
-    
-    print('# categories = ', len(search_data))
-    count = 1
-    
     for k in search_data:
-        print('{}. {}'.format(count, k))
-
         if sku_status == 'filtered':
-            temp_df = gcom.grainger_q(grainger_hier_query, search_level, k)
+            temp_df = gcom.grainger_q(STEP_query, search_level, k)
 
         elif sku_status == 'all':
-            temp_df = gcom.grainger_q(grainger_discontinued_query, search_level, k)
+            temp_df = gcom.grainger_q(STEP_query, search_level, k)
         
         if temp_df.empty == False:
             gws_df = gws_data(temp_df)
@@ -187,16 +232,9 @@ if data_type == 'grainger_query':
             if gws_df.empty == False:
                 gws_stat = 'yes'
                 temp_df = temp_df.merge(gws_df, how="left", left_on="STEP_SKU", right_on='WS_SKU')
-            else:
-                print('EMPTY GWS')
 
-        else:
-            print('EMPTY Teradata')
-            
-        grainger_df = pd.concat([grainger_df, temp_df], axis=0)
-        print(k)
-        
-        count += 1
+            grainger_df = pd.concat([grainger_df, temp_df], axis=0)
+            print(k)
         
 elif data_type == 'yellow':
     for k in search_data:
@@ -206,10 +244,10 @@ elif data_type == 'yellow':
             k = "'" + str(k) + "'"
             
         if sku_status == 'filtered':
-            temp_df = gcom.grainger_q(grainger_hier_query, 'yellow.PROD_CLASS_ID', k)
+            temp_df = gcom.grainger_q(STEP_query, 'yellow.PROD_CLASS_ID', k)
 
         elif sku_status == 'all':
-            temp_df = gcom.grainger_q(grainger_discontinued_query, 'yellow.PROD_CLASS_ID', k)
+            temp_df = gcom.grainger_q(STEP_query, 'yellow.PROD_CLASS_ID', k)
             
         if temp_df.empty == False:
             gws_df = gws_data(temp_df)
@@ -230,8 +268,7 @@ elif data_type == 'sku':
 
         if num_lists == 1:
             num_lists = 2
-        
-        print('Number of SKUs = ', len(search_data))
+
         print('running GWS SKUs in {} batches'.format(num_lists))
 
         size = round(len(search_data)/num_lists, 0)
@@ -244,21 +281,21 @@ elif data_type == 'sku':
             sku_str  = ", ".join("'" + str(i) + "'" for i in div_lists[k])
 
             if sku_status == 'filtered':
-                temp_df = gcom.grainger_q(grainger_hier_query, 'item.MATERIAL_NO', sku_str)
+                temp_df = gcom.grainger_q(STEP_query, 'item.MATERIAL_NO', sku_str)
 
             elif sku_status == 'all':
-                temp_df = gcom.grainger_q(grainger_discontinued_query, 'item.MATERIAL_NO', sku_str)
-
+                temp_df = gcom.grainger_q(STEP_query, 'item.MATERIAL_NO', sku_str)
+                
             grainger_df = pd.concat([grainger_df, temp_df], axis=0, sort=False)
 
     else:
         sku_str  = ", ".join("'" + str(i) + "'" for i in search_data)
         
         if sku_status == 'filtered':
-            grainger_df = gcom.grainger_q(grainger_hier_query, 'item.MATERIAL_NO', sku_str)
+            grainger_df = gcom.grainger_q(STEP_query, 'item.MATERIAL_NO', sku_str)
 
         elif sku_status == 'all':
-            grainger_df = gcom.grainger_q(grainger_discontinued_query, 'item.MATERIAL_NO', sku_str)
+            grainger_df = gcom.grainger_q(STEP_query, 'item.MATERIAL_NO', sku_str)
             
     if grainger_df.empty == False:
         gws_df = gws_data(grainger_df)
@@ -277,10 +314,10 @@ elif data_type == 'gws_query':
             grainger_skus_df = grainger_data(temp_df, sku_status)
 
             if grainger_skus_df.empty == False:
-                temp_df = temp_df.merge(grainger_skus_df, how="left", left_on='WS_SKU', right_on="STEP_SKU")
+                temp_df = temp_df.merge(grainger_skus_df, how="left", left_on="STEP_SKU", right_on='WS_SKU')
 
         grainger_df = pd.concat([grainger_df, temp_df], axis=0)            
         print(k)
 
-fd.hier_data_out(settings.directory_name, grainger_df, quer, gws_stat, search_level)
+data_out(grainger_df, quer)
 print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))

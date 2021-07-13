@@ -164,7 +164,7 @@ path = askdirectory(initialdir=init_dir)
 
 os.chdir(path)
 file_list = glob.glob('*.xlsx')
-
+hightouch_df = pd.DataFrame()
 print('Processing {} files'.format(len(file_list)))
 
 #create empty Build Sheet template

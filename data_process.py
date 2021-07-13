@@ -11,8 +11,8 @@ from pprint import pprint
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from spacy.lang.en import English
-from spacy.lang.en.stop_words import STOP_WORDS
+#from spacy.lang.en import English
+#from spacy.lang.en.stop_words import STOP_WORDS
 
 import re
 import glob
@@ -20,20 +20,20 @@ import os
 import math
 import string
 import query_code as q
-from fuzzywuzzy import fuzz
-from fuzzywuzzy import process
+#from fuzzywuzzy import fuzz
+#from fuzzywuzzy import process
 from collections import defaultdict
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.preprocessing import FunctionTransformer
-from sklearn.pipeline import FeatureUnion, Pipeline
+#from sklearn.feature_extraction.text import TfidfVectorizer
+#from sklearn.preprocessing import FunctionTransformer
+#from sklearn.pipeline import FeatureUnion, Pipeline
 #from sparse_dot_topn import awesome_cossim_topn
 
-from nltk.tokenize import TreebankWordTokenizer
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
+#from nltk.tokenize import TreebankWordTokenizer
+#from nltk.corpus import stopwords
+#from nltk.stem import WordNetLemmatizer
 #from nltk.stemp.porter import PorterStemmer
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.model_selection import train_test_split
+#from sklearn.feature_extraction.text import CountVectorizer
+#from sklearn.model_selection import train_test_split
 
 
 
@@ -72,27 +72,27 @@ def cat_filter(df, category, cat_filter):
     return cat_filter
 
 
-def get_words(text):    
+#def get_words(text):    
 #    doc = remove_punctuation(text)
-    token_list = []
-    words = []
+#    token_list = []
+#    words = []
 
-    nlp = English()  #load Spacy English tokenizer
+#    nlp = English()  #load Spacy English tokenizer
     
-    doc = nlp(text)
+#    doc = nlp(text)
     
     # Create list of word tokens and use Spacy for lemmatization
-    for token in doc:
-        token.lemma_
-        token_list.append(token.text)
+#    for token in doc:
+#        token.lemma_
+#        token_list.append(token.text)
     
-    for wd in token_list:
-        txt = nlp.vocab[wd]
-        if txt.is_punct == False:       #remove punctuation
-            if txt.is_stop == False:    #remove stopwords from Spacy list
-                words.append(wd.lower()) 
+#    for wd in token_list:
+#        txt = nlp.vocab[wd]
+#        if txt.is_punct == False:       #remove punctuation
+#            if txt.is_stop == False:    #remove stopwords from Spacy list
+#                words.append(wd.lower()) 
 
-    return words
+#    return words
 
 def grainger_corp(df, node):
     """build a unique document corpus for each grainger node, whith each attribute considered a document"""

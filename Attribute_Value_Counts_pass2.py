@@ -4,6 +4,7 @@ Search for values using LIKE, edit query for specific values
 
 import pandas as pd
 import numpy as np
+import Attribute_Value_Counts_adjunct_pass2 as adj
 from GWS_query import GWSQuery
 import time
 
@@ -35,34 +36,22 @@ attr_values="""
 
 		SELECT
 					array_to_string(tax.ancestor_names || tax.name,' > ') as "PIM_Path"
-				, tax.ancestors[1] as "WS_Category_ID"
-				, tax.ancestor_names[1] as "WS_Category_Name"
-				, tprod."categoryId" AS "WS_Node_ID"
-				, tax.name as "WS_Node_Name"
+				, tax.ancestors[1] as "WS_Branch_ID"
+				, tax.ancestor_names[1] as "WS_Branch_Name"
+				, tprod."categoryId" AS "WS_Leaf_Node_ID"
+				, tax.name as "WS_Leaf_Node_Name"
 				, tprod."gtPartNumber" as "WS_SKU"
-				, pi_mappings.step_category_ids[1] AS "STEP_Category_ID"
-				, pi_mappings.step_attribute_ids[1] as "STEP_Attr_ID"
 				, tax_att.id as "WS_Attr_ID"
-				, tprodvalue.id as "WS_Attr_Value_ID"
-				, tax_att."multiValue" as "Multivalue"
 				, tax_att."dataType" as "Data_Type"
-				, tax_att."numericDisplayType" as "Numeric_Display_Type"
---        , tax_att.description as "WS_Attribute_Definition"
 				, tax_att.name as "WS_Attribute_Name"
-				, tprodvalue.value as "Original_Value"
-				, tprodvalue.unit as "Original_Unit"
 				, tprodvalue."valueNormalized" as "Normalized_Value"
 				, tprodvalue."unitNormalized" as "Normalized_Unit"
-			, tprodvalue."numeratorNormalized" as "Numerator"
-			, tprodvalue."denominatorNormalized" as "Denominator"
-				, tax_att."unitGroupId" as "Unit_Group_ID"
 
 		FROM  taxonomy_product tprod
 
 		INNER JOIN tax
 				ON tax.id = tprod."categoryId"
-				--  AND (4458 = ANY(tax.ancestors)) --OR 8215 = ANY(tax.ancestors) OR 7739 = ANY(tax.ancestors))  -- *** ADD TOP LEVEL NODES HERE ***
-				AND tprod.status = 3
+--				AND tprod.status = 3
 
 		INNER JOIN taxonomy_attribute tax_att
 				ON tax_att."categoryId" = tprod."categoryId"
@@ -73,17 +62,42 @@ attr_values="""
 				AND tax_att.id = tprodvalue."attributeId"
 				AND tprodvalue.deleted = 'false'
 
-		INNER JOIN pi_mappings
-				ON pi_mappings.gws_attribute_ids[1] = tax_att.id
-				AND pi_mappings.gws_category_id = tax_att."categoryId"
-
-		WHERE {} LIKE {}
+		WHERE {} IN ({})
+--            AND tax_att."dataType" = 'text'
 """
 
 
-def data_out(ws_df, batch=''):
-		outfile = 'C:/Users/xcxg109/NonDriveFiles/ATTR_VALUES_'+str(batch)+'.xlsx'
-		ws_df.to_excel (outfile, index=None, header=True, encoding='utf-8')
+def get_col_widths(df):
+    #find maximum length of the index column
+    idx_max = max([len(str(s)) for s in df.index.values] + [len(str(df.index.name))])
+    #Then concatenate this to max of the lengths of column name and its values for each column
+    
+    return [idx_max] + [max([len(str(s)) for s in df[col].values] + [len(col)]) for col in df.columns]
+
+
+def data_out(final_df, batch=''):
+    outfile = 'C:/Users/xcxg109/NonDriveFiles/ATTR_VALUES_'+str(batch)+'.xlsx'
+    writer = pd.ExcelWriter(outfile, engine='xlsxwriter', options={'strings_to_urls': False})
+ 
+    final_df.to_excel (writer, sheet_name="Attributes", startrow=0, startcol=0, index=False)
+    worksheet1 = writer.sheets['Attributes']
+    workbook  = writer.book
+
+    col_widths = get_col_widths(final_df)
+    col_widths = col_widths[1:]
+    
+    for i, width in enumerate(col_widths):
+        if width > 40:
+            width = 40
+        elif width < 10:
+            width = 10
+        worksheet1.set_column(i, i, width)
+
+    layout = workbook.add_format()
+    layout.set_text_wrap('text_wrap')
+    layout.set_align('left')
+
+    writer.save()
 
 
 ws_df = pd.DataFrame()
@@ -92,20 +106,26 @@ start_time = time.time()
 print('working...')
 
 # read in attribute name from file -- fix this to choice menu at some point
-att_df = pd.read_csv('C:/Users/xcxg109/NonDriveFiles/reference/att_test.csv')
+att_df = pd.read_csv('C:/Users/xcxg109/NonDriveFiles/reference/atts.csv')
 
-attributes = att_df['Attribute'].unique().tolist()
+attributes = att_df['WS_Attr_ID'].unique().tolist()
+print('attribute # = ', len(attributes))
+
+count_att = 1
 
 for att in attributes:
-    att = "'%" + att + "%'"
-    temp_df = gws.gws_q(attr_values, 'tax_att.name', att)
+    print('{}. {}'.format(count_att, att))
 
-    if temp_df.empty == False:
-        ws_df = pd.concat([ws_df, temp_df], axis=0, sort=False)
-    else:
-        print('EMPTY DATAFRAME')
-        
-ws_df.drop_duplicates()
+#    att = "'" + att + "'"
+    temp_df = gws.gws_q(attr_values, 'tax_att.id', att)
+
+    ws_df = pd.concat([ws_df, temp_df], axis=0, sort=False)
+
+    count_att += 1
+    
+ws_df = ws_df.drop(columns=['WS_SKU'])
+
+#ws_df = ws_df.drop_duplicates()
 
 if len(ws_df) > 900000:
 		count = 1
@@ -125,4 +145,4 @@ else:
 		data_out(ws_df)
 
 
-print("--- {} seconds ---".format(round(time.time() - start_time, 2)))
+print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))

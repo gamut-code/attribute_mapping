@@ -24,6 +24,13 @@ def get_stats(df):
     return stats
 
 
+def get_ws_stats(df):
+    """return unique values for each attribute with a count of how many times each is used in the node"""
+    df['Count'] =1
+    stats = pd.DataFrame(df.groupby(['WS_Attribute_Name', 'WS_Attribute_Value'])['Count'].sum())
+    return stats
+
+
 def item_search(analysis, searchfor):
     """search the dictionary of attributes for any key containing the passed in value. Used to look for any 'Item' attributes"""
     total = [value for (key, value) in analysis.items() if searchfor in key]
@@ -64,6 +71,38 @@ def get_fill_rate(df):
 
     return fill_rate
 
+
+def get_ws_fill_rate(df):
+    browsable_skus = pd.DataFrame()
+
+    # eliminate all discontinueds and R4/R9 before calculating fill rate
+    browsable_skus = df
+    pmCode = ['R4', 'R9']
+    salesCode = ['DG', 'DV', 'WG', 'WV']
+    browsable_skus = browsable_skus[~browsable_skus.PM_Code.isin(pmCode)]
+    browsable_skus = browsable_skus[~browsable_skus.Sales_Status.isin(salesCode)]
+
+    total = browsable_skus['WS_SKU'].nunique()
+
+    if total > 0:
+        browsable_skus = browsable_skus.drop_duplicates(subset=['WS_SKU', 'WS_Attribute_Name'])  #create list of unique grainger skus that feed into gamut query
+
+        browsable_skus['WS_Fill_Rate_%'] = (browsable_skus.groupby('WS_Attribute_Name')['WS_Attribute_Name'].transform('count')/total)*100
+        browsable_skus['WS_Fill_Rate_%'] = browsable_skus['WS_Fill_Rate_%'].map('{:,.2f}'.format)
+    
+        fill_rate = pd.DataFrame(browsable_skus.groupby(['WS_Attribute_Name'])['WS_Fill_Rate_%'].count()/total*100).reset_index()
+        fill_rate = fill_rate.sort_values(by=['WS_Fill_Rate_%'], ascending=False)
+
+        browsable_skus = browsable_skus[['WS_Attribute_Name']].drop_duplicates(subset='WS_Attribute_Name')
+        fill_rate = fill_rate.merge(browsable_skus, how= "inner", on=['WS_Attribute_Name'])
+        fill_rate['WS_Fill_Rate_%'] = fill_rate['WS_Fill_Rate_%'].map('{:,.2f}'.format)
+
+    else:
+        df['WS_Fill_Rate_%'] = 'no browsable SKUs'
+        fill_rate = df[['WS_Attribute_Name']].drop_duplicates(subset='WS_Attribute_Name')
+        fill_rate['WS_Fill_Rate_%'] = 'no browsable SKUs'
+
+    return fill_rate
 
 def gws_values(df):
     df['WS_Value'] = ''
@@ -143,6 +182,43 @@ if data_type == 'value' or data_type == 'name' or data_type == 'uom_val':
 start_time = time.time()
 print('working...')
         
+if data_type == 'gws_query':
+    grainger_df = pd.DataFrame()
+    
+    for k in search_data:
+        gws_df = gws.gws_q(ws_attr_query, 'tprod."categoryId"', k)
+        
+        if gws_df.empty == False:
+            df_stats = get_ws_stats(gws_df)
+            df_fill = get_ws_fill_rate(gws_df)
+            
+            nodes = gws_['Category_ID'].unique()
+            
+            for n in nodes:
+                gws_node = "'" + str(n) + "_DIV1'"
+                print(gws_node)
+ 
+                temp_df = gws.gws_q(gws_attr_values, 'pi_mappings.step_category_ids[1]', gws_node)
+                gws_df = pd.concat([gws_df, temp_df], axis=0, sort=False) 
+ 
+            gws_df['STEP_Attr_ID'] = gws_df['STEP_Attr_ID'].str.replace('_ATTR', '')
+            gws_df['STEP_Attr_ID'] = gws_df['STEP_Attr_ID'].astype(int)
+            
+            gws_df = gws_values(gws_df)
+            
+            grainger_df = pd.merge(grainger_df, gws_df, how='left', left_on=['Grainger_SKU', 'Grainger_Attr_ID'], \
+                                                                   right_on=['WS_SKU', 'STEP_Attr_ID'])
+                               
+            grainger_df = compare_values(grainger_df)
+            
+            grainger_df.dropna(subset=['Segment_ID'], inplace=True)
+            
+#            fd.attr_data_out(settings.directory_name, grainger_df, df_stats, df_fill, search_level)
+            data_out(grainger_df, k)
+            
+        print (k)
+        print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))
+
 
 if data_type == 'sku':
         val_type = '_regular'
@@ -176,7 +252,7 @@ elif data_type == 'name':
             k = "'%%" + str(k) + "%%'"
 
 #        df = gcom.grainger_q(grainger_value_query, 'attr.DESCRIPTOR_NAME', k)
-        df = gws_gws_q(ws_attr_values, 'tax_att.name', k)
+        df = gws.gws_q(ws_attr_values, 'tax_att.name', k)
 
         if df.empty == False:
             fd.data_out(settings.directory_name, df, 'ATTRIBUTE Name', search_level)

@@ -251,10 +251,10 @@ def data_check_out(directory_name, grainger_df, stats_df, quer, search_level, ws
     
     grainger_df['Category_Name'] = modify_name(grainger_df['Category_Name'], '/', '_') #clean up node names to include them in file names   
  
-    columnsTitles = ['Grainger_SKU', 'GWS_SKU', 'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', \
-                     'Category_ID', 'Category_Name', 'GWS_Node_ID', 'GWS_Node_Name', 'GWS_PIM_Path', \
-                     'PM_CODE', 'SALES_STATUS', 'RELATIONSHIP_MANAGER_CODE']        
-    grainger_df = grainger_df.reindex(columns=columnsTitles)
+#    columnsTitles = ['Grainger_SKU', 'GWS_SKU', 'Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', \
+#                     'Category_ID', 'Category_Name', 'GWS_Node_ID', 'GWS_Node_Name', 'GWS_PIM_Path', \
+#                     'PM_CODE', 'SALES_STATUS', 'RELATIONSHIP_MANAGER_CODE']        
+#    grainger_df = grainger_df.reindex(columns=columnsTitles)
     
     columnsTitles = ['Segment_ID', 'Segment_Name', 'Family_ID', 'Family_Name', 'Category_ID', 'Category_Name', \
                     'GWS_Node_ID', 'GWS_Node_Name', '#_Grainger_Attributes', '#_GWS_Attributes', \
@@ -499,7 +499,8 @@ def hier_data_out(directory_name, df, quer, stat, search_level):
                     'STEP_Family_ID', 'STEP_Family_Name', 'STEP_Category_ID', 'STEP_Category_Name', \
                     'STEP_Yellow', 'STEP_Web_Parent', 'PIM_Path', 'PIM_Category_ID', 'PIM_Category_Name', \
                     'PIM_Node_ID', 'PIM_Node_Name', 'PM_CODE', 'STEP_SALES_STATUS', \
-                    'PIM_Status', 'RELATIONSHIP_MANAGER_CODE']    
+                    'PIM_Status', 'RELATIONSHIP_MANAGER_CODE', 'PRICING_FLAG', \
+                    'PRICER_FIRST_EFFECTIVE_DATE', 'PRICER_EFFECTIVE_DATE']    
         
     df = df.reindex(columns=columnTitles)
 

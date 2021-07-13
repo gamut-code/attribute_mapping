@@ -6,13 +6,15 @@ Created on Thu Mar  4 11:03:10 2021
 """
 
 import pandas as pd
+import numpy as np
 import file_data_GWS as fd
+import time
 
 def data_out(df):
     
-    outfile = 'C:/Users/xcxg109/NonDriveFiles/Priority_Rankings.xlsx'
+    outfile = 'C:/Users/xcxg109/NonDriveFiles/Priority_Rankings_THURS.xlsx'
     
-    df = df.sort_values(['PIM Leaf Node Name', 'rank', 'PIM Attribute Name'], ascending=[True, True, True])
+    df = df.sort_values(['GWS_Leaf_Node_Name', 'rank', 'GWS_Attribute_Name'], ascending=[True, True, True])
 
     writer = pd.ExcelWriter(outfile, engine='xlsxwriter')
     workbook  = writer.book
@@ -36,22 +38,32 @@ def data_out(df):
 
     writer.save()
 
-    
-df = pd.read_csv('C:/Users/xcxg109/NonDriveFiles/reference/required_optional_V2.csv')
 
 final_df = pd.DataFrame()
+endeca_only = pd.DataFrame()
 
-cat_list = df['STEP Category IDs'].unique().tolist()
+df = pd.read_csv('C:/Users/xcxg109/NonDriveFiles/reference/wed_hues.csv')
+df = df[df['STEP_Attr_ID'] != '102079_ATTR']
+
+start_time = time.time()
+
+cat_list = df['Blue-PIM L3 ID'].unique().tolist()
+count = 1
 
 for cat in cat_list:
-    print('cat = ', cat)
-    temp_df = df[df['STEP Category IDs'] == cat]
+    print('{}. {}'.format(count, cat))
+    temp_df = df[df['Blue-PIM L3 ID'] == cat]
+    temp_df = temp_df.sort_values(by=['Table Ranking', 'Endeca Ranking'], ascending=[True, True])
+    temp_df = temp_df.drop_duplicates(subset = 'STEP_Attr_ID', keep='first')
 
-    table_df = temp_df[temp_df['Table Ranking'] != 0]
-    table_df = table_df.sort_values(['Table Ranking'])
-    table_count = 1
+    table_df = temp_df[temp_df['Table Ranking'].notna()]
     
-    table_df = table_df[['STEP Attribute IDs', 'rank']]
+    if table_df.empty == True:
+        endeca_only = pd.concat([endeca_only, temp_df], axis=0, sort=False)
+
+    table_count = 1
+        
+    table_df = table_df[['STEP_Attr_ID', 'rank']]
 
     for row in table_df.itertuples():
         table_df.at[row.Index, 'rank'] = table_count
@@ -59,16 +71,13 @@ for cat in cat_list:
         table_count += 1        
 
     temp_df = temp_df.drop('rank', axis=1)
-    temp_df = temp_df.merge(table_df, how="outer", on=['STEP Attribute IDs'])
+    temp_df = temp_df.merge(table_df, how="outer", on=['STEP_Attr_ID'])
 
-    temp_df['rank'] = temp_df['rank'].fillna(0)
+    endeca_df = temp_df[temp_df['Endeca Ranking'].notna()]
+    endeca_df = endeca_df[endeca_df['rank'].isna()]
 
-    endeca_df = temp_df[temp_df['rank'] == 0]
-    endeca_df = endeca_df[endeca_df['Endeca Ranking'] != 0]
     endeca_df = endeca_df.sort_values(['Endeca Ranking'])
 
-#    endeca_df = endeca_df[['STEP Attribute IDs', 'rank']]
-        
     for row in endeca_df.itertuples():
         endeca_df.at[row.Index, 'rank'] = table_count
 
@@ -78,4 +87,8 @@ for cat in cat_list:
     
     final_df = pd.concat([final_df, temp_df], axis=0, sort=False)
     
-    data_out(final_df)
+    count += 1
+
+data_out(final_df)
+    
+print("--- {} minutes ---".format(round((time.time() - start_time)/60, 2)))

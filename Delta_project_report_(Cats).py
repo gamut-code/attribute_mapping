@@ -223,7 +223,7 @@ if data_type == 'grainger_query':
             grainger_atts = second_chance_atts(k)
         
         grainger_df = pd.concat([grainger_df, grainger_atts], axis=0)
-        print(k)
+        print('k = ', k)
         count+=1
         
 grainger_df = grainger_df.drop_duplicates()

@@ -30,14 +30,15 @@ STEP_query="""
             , item.SALES_STATUS
             , item.PRICING_FLAG
             , item.PRICER_FIRST_EFFECTIVE_DATE
+            , item.PRICER_EFFECTIVE_DATE
             
             FROM PRD_DWH_VIEW_LMT.ITEM_V AS item
 
             FULL OUTER JOIN PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
             	ON cat.CATEGORY_ID = item.CATEGORY_ID
-         		AND item.DELETED_FLAG = 'N'
-                AND item.PRODUCT_APPROVED_US_FLAG = 'Y'
-                AND item.PM_CODE NOT IN ('R9')
+--         		AND item.DELETED_FLAG = 'N'
+--                AND item.PRODUCT_APPROVED_US_FLAG = 'Y'
+--                AND item.PM_CODE NOT IN ('R9')
         
             WHERE item.SALES_STATUS NOT IN ('DG', 'DV', 'CS')
                 AND item.RELATIONSHIP_MANAGER_CODE NOT IN ('L15', '') -- NOTE: blank RMC = MX only
@@ -75,16 +76,12 @@ PIM_query="""
                 , tprod."gtPartNumber" as "WS_SKU"
                 , tprod.id as "PIM_SKU_ID"
                 , tprod.status as "PIM_Status"
-                , replace(array_to_string(step_category_ids,', '), '_DIV1', '') as STEP_Category_ID
 
             FROM taxonomy_product tprod
 
             INNER JOIN tax
                 ON tax.id = tprod."categoryId"
                 AND ({} = ANY(tax.ancestors))
-
-            FULL OUTER JOIN pi_mappings
-                ON tprod."categoryId" = pi_mappings.gws_category_id
             """
         
         

@@ -15,46 +15,46 @@ ws_basic_query="""
     
     WHERE {} IN ({})
 """
-
+    
 ws_attr_query="""
-        WITH RECURSIVE tax AS (
-                SELECT  id,
-            name,
-            ARRAY[]::INTEGER[] AS ancestors,
-            ARRAY[]::character varying[] AS ancestor_names
-                FROM    taxonomy_category as category
-                WHERE   "parentId" IS NULL
-                AND category.deleted = false
-
-                UNION ALL
-
-                SELECT  category.id,
-            category.name,
-            tax.ancestors || tax.id,
-            tax.ancestor_names || tax.name
-                FROM    taxonomy_category as category
-                INNER JOIN tax ON category."parentId" = tax.id
-                WHERE   category.deleted = false
-
-            )
-
-    SELECT
-          array_to_string(tax.ancestor_names || tax.name,' > ') as "GWS_PIM_Path"
-        , tax.ancestors[1] as "GWS_Category_ID"
-        , tax.ancestor_names[1] as "GWS_Category_Name"
-        , tax_att."categoryId" AS "GWS_Node_ID"
-        , tax.name as "GWS_Node_Name"
-        , tax_att.id as "GWS_Attr_ID"
-        , tax_att.name as "GWS_Attribute_Name"
-        , tax_att.description as "GWS_Attribute_Definition"
-   
-    FROM  taxonomy_attribute tax_att
-
-    INNER JOIN tax
-        ON tax.id = tax_att."categoryId"
-        
-    WHERE {} IN ({})
-        """
+            WITH RECURSIVE tax AS (
+                    SELECT  id,
+                name,
+                ARRAY[]::INTEGER[] AS ancestors,
+                ARRAY[]::character varying[] AS ancestor_names
+                    FROM    taxonomy_category as category
+                    WHERE   "parentId" IS NULL
+                    AND category.deleted = false
+    
+                    UNION ALL
+    
+                    SELECT  category.id,
+                category.name,
+                tax.ancestors || tax.id,
+                tax.ancestor_names || tax.name
+                    FROM    taxonomy_category as category
+                    INNER JOIN tax ON category."parentId" = tax.id
+                    WHERE   category.deleted = false
+    
+                )
+    
+        SELECT
+              array_to_string(tax.ancestor_names || tax.name,' > ') as "GWS_PIM_Path"
+            , tax.ancestors[1] as "GWS_Category_ID"
+            , tax.ancestor_names[1] as "GWS_Category_Name"
+            , tax_att."categoryId" AS "GWS_Node_ID"
+            , tax.name as "GWS_Node_Name"
+            , tax_att.id as "GWS_Attr_ID"
+            , tax_att.name as "GWS_Attribute_Name"
+            , tax_att.description as "GWS_Attribute_Definition"
+       
+        FROM  taxonomy_attribute tax_att
+    
+        INNER JOIN tax
+            ON tax.id = tax_att."categoryId"
+            
+        WHERE {} IN ({})
+            """
 
 ws_attr_values="""
         WITH RECURSIVE tax AS (
@@ -84,7 +84,10 @@ ws_attr_values="""
         , tprod."categoryId" AS "WS_Node_ID"
         , tax.name as "WS_Node_Name"
         , tprod."gtPartNumber" as "WS_SKU"
+        , tprod."investmentLevel"
         , supplier."supplierNo" as "Supplier_ID"
+        , supplier."pmCode" as "PM_Code"
+        , supplier."salesStatus" as "Sales_Status"
         , tprod.supplier as "Supplier_Name"
         , pi_mappings.step_category_ids[1] AS "STEP_Category_ID"
         , pi_mappings.step_attribute_ids[1] as "STEP_Attr_ID"
@@ -99,8 +102,8 @@ ws_attr_values="""
         , tprodvalue.unit as "Original_Unit"
         , tprodvalue."valueNormalized" as "Normalized_Value"
         , tprodvalue."unitNormalized" as "Normalized_Unit"
-	    , tprodvalue."numeratorNormalized" as "Numerator"
-	    , tprodvalue."denominatorNormalized" as "Denominator"
+--	    , tprodvalue."numeratorNormalized" as "Numerator"
+--	    , tprodvalue."denominatorNormalized" as "Denominator"
         , tax_att."unitGroupId" as "Unit_Group_ID"
         , tax_att.rank as "Rank"
         , tax_att.priority as "Priority"
@@ -112,11 +115,11 @@ ws_attr_values="""
         --  AND (4458 = ANY(tax.ancestors)) --OR 8215 = ANY(tax.ancestors) OR 7739 = ANY(tax.ancestors))  -- *** ADD TOP LEVEL NODES HERE ***
         AND tprod.status = 3
         
-    FULL OUTER JOIN taxonomy_attribute tax_att
+    INNER JOIN taxonomy_attribute tax_att
         ON tax_att."categoryId" = tprod."categoryId"
         AND tax_att.deleted = 'false'
 
-    FULL OUTER JOIN  taxonomy_product_attribute_value tprodvalue
+    INNER JOIN  taxonomy_product_attribute_value tprodvalue
         ON tprod.id = tprodvalue."productId"
         AND tax_att.id = tprodvalue."attributeId"
         AND tprodvalue.deleted = 'false'
@@ -399,7 +402,9 @@ grainger_hier_query="""
             , flat.Web_Parent_Name AS Gcom_Web_Parent
             , supplier.SUPPLIER_NO AS Supplier_ID
             , supplier.SUPPLIER_NAME AS Supplier
-
+            , item.PRICING_FLAG
+            , item.PRICER_FIRST_EFFECTIVE_DATE
+            , item.PRICER_EFFECTIVE_DATE
 
             FROM PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
             
@@ -443,7 +448,9 @@ grainger_attr_query="""
             , item.RELATIONSHIP_MANAGER_CODE
 --            , attr.attribute_level_definition as Grainger_Attribute_Definition
 --            , cat_desc.cat_specific_attr_definition as Grainger_Category_Specific_Definition
-
+            , item.PRICER_FIRST_EFFECTIVE_DATE
+            , item.PRICER_EFFECTIVE_DATE
+            
             FROM PRD_DWH_VIEW_MTRL.ITEM_DESC_V AS item_attr
 
             INNER JOIN PRD_DWH_VIEW_MTRL.ITEM_V AS item
@@ -480,7 +487,9 @@ grainger_value_query="""
             , item.PM_CODE AS PM_Code
             , item.SHORT_DESCRIPTION AS Item_Description
             , yellow.PROD_CLASS_ID AS Yellow_ID
-
+            , item.PRICING_FLAG
+            , item.PRICER_FIRST_EFFECTIVE_DATE
+            , item.PRICER_EFFECTIVE_DATE
 
             FROM PRD_DWH_VIEW_MTRL.ITEM_DESC_V AS item_attr
 
@@ -527,6 +536,8 @@ STEP_ETL_query="""
             , item.SALES_STATUS
             , item.PRICING_FLAG
             , item.PRICER_FIRST_EFFECTIVE_DATE
+            , item.PRICER_FIRST_EFFECTIVE_DATE
+            , item.PRICER_EFFECTIVE_DATE
             
             FROM PRD_DWH_VIEW_LMT.ITEM_V AS item
 
@@ -559,7 +570,10 @@ grainger_attr_ETL_query="""
             , item_attr.ITEM_DESC_VALUE as Grainger_Attribute_Value
             , attr.attribute_level_definition as Grainger_Attribute_Definition
             , cat_desc.cat_specific_attr_definition as Grainger_Category_Specific_Definition
-
+            , item.PRICING_FLAG
+            , item.PRICER_FIRST_EFFECTIVE_DATE
+            , item.PRICER_EFFECTIVE_DATE
+            
             FROM PRD_DWH_VIEW_MTRL.ITEM_DESC_V AS item_attr
 
             INNER JOIN PRD_DWH_VIEW_MTRL.ITEM_V AS item
@@ -607,7 +621,10 @@ grainger_attr_ALL_query="""
             , item_attr.ITEM_DESC_VALUE as Grainger_Attribute_Value
             , attr.attribute_level_definition as Grainger_Attribute_Definition
             , cat_desc.cat_specific_attr_definition as Grainger_Category_Specific_Definition
-
+            , item.PRICING_FLAG
+            , item.PRICER_FIRST_EFFECTIVE_DATE
+            , item.PRICER_EFFECTIVE_DATE
+            
             FROM PRD_DWH_VIEW_MTRL.ITEM_DESC_V AS item_attr
 
             INNER JOIN PRD_DWH_VIEW_MTRL.ITEM_V AS item
@@ -759,7 +776,10 @@ grainger_discontinued_query="""
             , item.RELATIONSHIP_MANAGER_CODE
             , yellow.PROD_CLASS_ID AS STEP_Yellow
             , flat.Web_Parent_Name AS STEP_Web_Parent
-
+            , item.PRICING_FLAG
+            , item.PRICER_FIRST_EFFECTIVE_DATE
+            , item.PRICER_EFFECTIVE_DATE
+            
             FROM PRD_DWH_VIEW_LMT.ITEM_V AS item
 
             INNER JOIN PRD_DWH_VIEW_MTRL.CATEGORY_V AS cat
@@ -799,6 +819,9 @@ grainger_ONLY_discontinueds="""
             , item.SALES_STATUS AS Sales_Status
             , item.PM_CODE AS PM_Code
 --            , yellow.PROD_CLASS_ID AS Yellow_ID
+            , item.PRICING_FLAG
+            , item.PRICER_FIRST_EFFECTIVE_DATE
+            , item.PRICER_EFFECTIVE_DATE
 
             FROM PRD_DWH_VIEW_MTRL.ITEM_DESC_V AS item_attr
 

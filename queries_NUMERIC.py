@@ -8,7 +8,7 @@ Created on Fri Jul 12 12:56:37 2019
 
 gws_basic_query="""
     SELECT
-          tprod."gtPartNumber" as "GWS_SKU"
+          tprod."gtPartNumber" as "WS_SKU"
         , tprod."gtPartNumber" as "Grainger_SKU"
         , tprod."categoryId" AS "GWS_Node_ID"
         
