@@ -389,19 +389,20 @@ grainger_basic_query="""
 
 #get basic SKU list and hierarchy data from Grainger teradata material universe
 grainger_hier_query="""
-            SELECT item.MATERIAL_NO AS Grainger_SKU
-            , cat.SEGMENT_ID AS Segment_ID
-            , cat.SEGMENT_NAME AS Segment_Name
-            , cat.FAMILY_ID AS Family_ID
-            , cat.FAMILY_NAME AS Family_Name
-            , cat.CATEGORY_ID AS Category_ID
-            , cat.CATEGORY_NAME AS Category_Name
-            , item.PM_CODE
-            , item.SALES_STATUS
-            , yellow.PROD_CLASS_ID AS Gcom_Yellow
-            , flat.Web_Parent_Name AS Gcom_Web_Parent
+            SELECT item.MATERIAL_NO AS STEP_SKU
+            , cat.SEGMENT_ID AS STEP_Segment_ID
+            , cat.SEGMENT_NAME AS STEP_Segment_Name
+            , cat.FAMILY_ID AS STEP_Family_ID
+            , cat.FAMILY_NAME AS STEP_Family_Name
+            , cat.CATEGORY_ID AS STEP_Category_ID
+            , cat.CATEGORY_NAME AS STEP_Category_Name
             , supplier.SUPPLIER_NO AS Supplier_ID
             , supplier.SUPPLIER_NAME AS Supplier
+            , item.PM_CODE
+            , item.SALES_STATUS AS STEP_SALES_STATUS
+            , item.RELATIONSHIP_MANAGER_CODE
+            , yellow.PROD_CLASS_ID AS STEP_Yellow
+            , flat.Web_Parent_Name AS STEP_Web_Parent
             , item.PRICING_FLAG
             , item.PRICER_FIRST_EFFECTIVE_DATE
             , item.PRICER_EFFECTIVE_DATE
